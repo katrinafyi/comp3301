@@ -1,0 +1,12 @@
+/Makefile.inc/1.8/Tue Dec  9 15:10:39 2014//TOPENBSD_7_3
+/bcmp.S/1.8/Sat Jan  1 23:47:14 2022//TOPENBSD_7_3
+/bzero.S/1.8/Sat Jan  1 23:47:14 2022//TOPENBSD_7_3
+/ffs.S/1.6/Tue Jul  3 23:14:05 2018//TOPENBSD_7_3
+/memchr.S/1.7/Tue Jul  3 23:14:05 2018//TOPENBSD_7_3
+/memmove.S/1.11/Sun Jan  2 01:20:25 2022//TOPENBSD_7_3
+/memset.S/1.8/Tue Jul  3 23:14:05 2018//TOPENBSD_7_3
+/strchr.S/1.9/Tue Jul  3 23:14:05 2018//TOPENBSD_7_3
+/strcmp.S/1.8/Tue Jul  3 23:14:05 2018//TOPENBSD_7_3
+/strlen.S/1.9/Tue Jan 11 09:21:34 2022//TOPENBSD_7_3
+/strrchr.S/1.9/Tue Jul  3 23:14:05 2018//TOPENBSD_7_3
+D

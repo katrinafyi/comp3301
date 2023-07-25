@@ -1,0 +1,9 @@
+/Makefile/1.37/Mon Jun 22 01:02:30 2020//TOPENBSD_7_3
+/kdump.1/1.35/Sat Jul 30 07:19:30 2022//TOPENBSD_7_3
+/kdump.c/1.156/Fri Feb 17 18:01:26 2023//TOPENBSD_7_3
+/kdump.h/1.7/Thu Dec 29 01:36:36 2022//TOPENBSD_7_3
+/kdump_subr.h/1.23/Mon Dec 19 22:55:12 2022//TOPENBSD_7_3
+/ktrstruct.c/1.31/Thu Dec 29 01:36:36 2022//TOPENBSD_7_3
+/mkioctls/1.43/Fri Sep 17 15:13:04 2021//TOPENBSD_7_3
+/mksubr/1.39/Mon Dec 19 22:55:12 2022//TOPENBSD_7_3
+D

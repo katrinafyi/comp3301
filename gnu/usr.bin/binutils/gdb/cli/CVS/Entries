@@ -1,0 +1,15 @@
+/cli-cmds.c/1.1.1.2/Mon Dec 27 13:14:09 2004//TOPENBSD_7_3
+/cli-cmds.h/1.1.1.1/Fri May 21 19:14:25 2004//TOPENBSD_7_3
+/cli-decode.c/1.2/Mon Dec 27 21:03:54 2004//TOPENBSD_7_3
+/cli-decode.h/1.1.1.2/Mon Dec 27 13:14:10 2004//TOPENBSD_7_3
+/cli-dump.c/1.1.1.2/Mon Dec 27 13:14:12 2004//TOPENBSD_7_3
+/cli-dump.h/1.1.1.1/Fri May 21 19:14:27 2004//TOPENBSD_7_3
+/cli-interp.c/1.1.1.1/Fri May 21 19:14:27 2004//TOPENBSD_7_3
+/cli-logging.c/1.1.1.2/Mon Dec 27 13:14:10 2004//TOPENBSD_7_3
+/cli-script.c/1.1.1.2/Mon Dec 27 13:14:08 2004//TOPENBSD_7_3
+/cli-script.h/1.1.1.1/Fri May 21 19:14:28 2004//TOPENBSD_7_3
+/cli-setshow.c/1.1.1.2/Mon Dec 27 13:14:08 2004//TOPENBSD_7_3
+/cli-setshow.h/1.1.1.1/Fri May 21 19:14:28 2004//TOPENBSD_7_3
+/cli-utils.c/1.1.1.1/Fri May 21 19:14:28 2004//TOPENBSD_7_3
+/cli-utils.h/1.1.1.1/Fri May 21 19:14:28 2004//TOPENBSD_7_3
+D

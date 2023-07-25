@@ -1,0 +1,21 @@
+/Makefile/1.5/Thu Feb 23 19:48:22 2023//TOPENBSD_7_3
+/conf.c/1.2/Mon Jan 16 21:32:12 2023//TOPENBSD_7_3
+/disk.h/1.1/Wed Apr 28 19:01:00 2021//TOPENBSD_7_3
+/efiboot.c/1.5/Mon Jun  6 10:50:56 2022//TOPENBSD_7_3
+/efiboot.h/1.1/Wed Apr 28 19:01:00 2021//TOPENBSD_7_3
+/efidev.c/1.4/Thu Sep  1 13:45:26 2022//TOPENBSD_7_3
+/efidev.h/1.1/Wed Apr 28 19:01:00 2021//TOPENBSD_7_3
+/efipxe.c/1.3/Sat Dec 11 20:11:18 2021//TOPENBSD_7_3
+/efipxe.h/1.1/Wed Apr 28 19:01:00 2021//TOPENBSD_7_3
+/efirng.c/1.2/Fri Jun 25 17:49:49 2021//TOPENBSD_7_3
+/exec.c/1.1/Wed Apr 28 19:01:00 2021//TOPENBSD_7_3
+/fdt.c/1.4/Mon Feb 13 16:16:03 2023//TOPENBSD_7_3
+/fdt.h/1.1/Wed Apr 28 19:01:00 2021//TOPENBSD_7_3
+/heap.h/1.1/Wed Apr 28 19:01:00 2021//TOPENBSD_7_3
+/ldscript.riscv64/1.1/Wed Apr 28 19:01:00 2021//TOPENBSD_7_3
+/libsa.h/1.2/Thu Feb 23 19:48:22 2023//TOPENBSD_7_3
+/self_reloc.c/1.1/Wed Apr 28 19:01:00 2021//TOPENBSD_7_3
+/softraid_riscv64.c/1.3/Mon Jan 16 21:30:46 2023//TOPENBSD_7_3
+/softraid_riscv64.h/1.2/Mon Jan 16 21:30:46 2023//TOPENBSD_7_3
+/start.S/1.1/Wed Apr 28 19:01:00 2021//TOPENBSD_7_3
+D

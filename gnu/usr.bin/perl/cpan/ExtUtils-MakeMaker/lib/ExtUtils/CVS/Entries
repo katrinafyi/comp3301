@@ -1,0 +1,28 @@
+/Command.pm/1.4/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/Liblist.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_AIX.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_Any.pm/1.13/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_BeOS.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_Cygwin.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_DOS.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_Darwin.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_MacOS.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_NW5.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_OS2.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_OS390.pm/1.1.1.1/Wed Feb 15 01:32:34 2023/-ko/TOPENBSD_7_3
+/MM_QNX.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_UWIN.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_Unix.pm/1.24/Wed Feb 15 01:38:21 2023/-ko/TOPENBSD_7_3
+/MM_VMS.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_VOS.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_Win32.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MM_Win95.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MY.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/MakeMaker.pm/1.10/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/Mkbootstrap.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/Mksymlists.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+/testlib.pm/1.6/Wed Feb 15 01:36:17 2023/-ko/TOPENBSD_7_3
+D/Command////
+D/Liblist////
+D/MakeMaker////

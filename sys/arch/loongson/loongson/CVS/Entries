@@ -1,0 +1,23 @@
+/autoconf.c/1.11/Fri Sep  2 20:06:56 2022//TOPENBSD_7_3
+/bus_dma.c/1.21/Fri Dec 20 13:34:41 2019//TOPENBSD_7_3
+/bus_space.c/1.2/Sat May 24 21:11:01 2014//TOPENBSD_7_3
+/conf.c/1.33/Sat Oct 15 10:12:13 2022//TOPENBSD_7_3
+/disksubr.c/1.10/Tue Feb 28 10:49:37 2017//TOPENBSD_7_3
+/gdium_machdep.c/1.8/Thu Mar 27 22:16:03 2014//TOPENBSD_7_3
+/genassym.cf/1.3/Sun Jan  3 14:17:27 2010//TOPENBSD_7_3
+/generic2e_machdep.c/1.10/Sat Feb 24 11:42:31 2018//TOPENBSD_7_3
+/generic3a_machdep.c/1.12/Sat Feb  4 19:19:36 2023//TOPENBSD_7_3
+/hibernate_machdep.c/1.8/Tue May  5 02:13:46 2015//TOPENBSD_7_3
+/isa_machdep.c/1.5/Mon Nov 14 17:15:41 2022//TOPENBSD_7_3
+/locore.S/1.9/Thu Feb 11 14:44:13 2021//TOPENBSD_7_3
+/locore0.S/1.1/Thu Jun  8 11:44:00 2017//TOPENBSD_7_3
+/loongson2_machdep.c/1.17/Fri Dec 20 13:34:41 2019//TOPENBSD_7_3
+/loongson3_intr.c/1.8/Mon Aug 22 00:35:07 2022//TOPENBSD_7_3
+/loongson3_machdep.c/1.1/Sat Aug 15 22:31:38 2015//TOPENBSD_7_3
+/machdep.c/1.100/Wed Aug 10 12:20:05 2022//TOPENBSD_7_3
+/pciide_machdep.c/1.2/Sat May  8 21:59:56 2010//TOPENBSD_7_3
+/pmon.c/1.8/Sun May 21 14:22:36 2017//TOPENBSD_7_3
+/pmon32.S/1.5/Fri Apr 20 14:36:42 2018//TOPENBSD_7_3
+/wscons_machdep.c/1.13/Sun Oct  9 11:25:39 2016//TOPENBSD_7_3
+/yeeloong_machdep.c/1.28/Wed Sep 26 14:58:16 2018//TOPENBSD_7_3
+D

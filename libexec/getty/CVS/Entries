@@ -1,0 +1,11 @@
+/Makefile/1.2/Sun Jan 28 19:34:28 2001//TOPENBSD_7_3
+/extern.h/1.6/Thu Jul 16 04:31:25 2015//TOPENBSD_7_3
+/getty.8/1.17/Thu Mar 31 17:27:18 2022//TOPENBSD_7_3
+/gettytab.5/1.28/Sat May 27 09:31:13 2017//TOPENBSD_7_3
+/gettytab.h/1.8/Fri Nov  6 16:42:30 2015//TOPENBSD_7_3
+/init.c/1.10/Fri Nov  6 16:42:30 2015//TOPENBSD_7_3
+/main.c/1.54/Fri Jun 28 13:32:53 2019//TOPENBSD_7_3
+/pathnames.h/1.4/Thu Nov 15 03:04:10 2018//TOPENBSD_7_3
+/subr.c/1.28/Thu Jun 14 23:19:27 2018//TOPENBSD_7_3
+/ttys.5/1.14/Fri Jul 29 13:56:36 2022//TOPENBSD_7_3
+D

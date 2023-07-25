@@ -1,0 +1,10 @@
+/05_about_verbose.t/1.1/Sun Feb  5 00:32:10 2017/-ko/TOPENBSD_7_3
+/fail.t/1.2/Wed Feb 13 21:15:21 2019/-ko/TOPENBSD_7_3
+/mix.t/1.2/Wed Feb 13 21:15:21 2019/-ko/TOPENBSD_7_3
+/multiline.t/1.1/Sun Feb  5 00:32:10 2017/-ko/TOPENBSD_7_3
+/onfail.t/1.2/Wed Feb 13 21:15:21 2019/-ko/TOPENBSD_7_3
+/qr.t/1.1/Sun Feb  5 00:32:10 2017/-ko/TOPENBSD_7_3
+/skip.t/1.1/Sun Feb  5 00:32:10 2017/-ko/TOPENBSD_7_3
+/success.t/1.1/Sun Feb  5 00:32:10 2017/-ko/TOPENBSD_7_3
+/todo.t/1.2/Wed Feb 13 21:15:21 2019/-ko/TOPENBSD_7_3
+D

@@ -1,0 +1,19 @@
+/append.cc/1.1.1.1/Mon Jan  5 15:46:30 2004//TOPENBSD_7_3
+/assign.cc/1.1.1.1/Mon Jan  5 15:46:30 2004//TOPENBSD_7_3
+/c_strings.cc/1.2/Wed Apr 27 09:40:29 2005//TOPENBSD_7_3
+/capacity.cc/1.1.1.1/Mon Jan  5 15:46:30 2004//TOPENBSD_7_3
+/char_traits_requirements.cc/1.2/Sat Jan 31 20:50:28 2004//TOPENBSD_7_3
+/char_traits_typedefs.cc/1.1.1.1/Mon Jan  5 15:46:30 2004//TOPENBSD_7_3
+/compare.cc/1.1.1.1/Mon Jan  5 15:46:30 2004//TOPENBSD_7_3
+/ctor_copy_dtor.cc/1.1.1.1/Mon Jan  5 15:46:30 2004//TOPENBSD_7_3
+/element_access.cc/1.1.1.1/Mon Jan  5 15:46:30 2004//TOPENBSD_7_3
+/find.cc/1.1.1.1/Mon Jan  5 15:46:30 2004//TOPENBSD_7_3
+/insert.cc/1.1.1.1/Mon Jan  5 15:46:30 2004//TOPENBSD_7_3
+/inserters_extractors.cc/1.1.1.1/Mon Jan  5 15:46:30 2004//TOPENBSD_7_3
+/invariants.cc/1.1.1.1/Mon Jan  5 15:46:30 2004//TOPENBSD_7_3
+/nonmember.cc/1.1.1.1/Mon Jan  5 15:46:30 2004//TOPENBSD_7_3
+/operations.cc/1.1.1.1/Mon Jan  5 15:46:30 2004//TOPENBSD_7_3
+/replace.cc/1.1.1.1/Mon Jan  5 15:46:32 2004//TOPENBSD_7_3
+/rfind.cc/1.1.1.1/Mon Jan  5 15:46:32 2004//TOPENBSD_7_3
+/substr.cc/1.1.1.1/Mon Jan  5 15:46:32 2004//TOPENBSD_7_3
+D

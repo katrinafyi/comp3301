@@ -1,0 +1,10 @@
+/Makefile/1.2/Wed Jun 26 05:33:14 1996//TOPENBSD_7_3
+/extern.h/1.10/Sun Jun 17 15:00:29 2018//TOPENBSD_7_3
+/finger.1/1.19/Thu Nov 14 08:50:04 2013//TOPENBSD_7_3
+/finger.c/1.28/Sun Dec  4 23:50:48 2022//TOPENBSD_7_3
+/finger.h/1.8/Sun Mar 15 00:41:28 2015//TOPENBSD_7_3
+/lprint.c/1.13/Thu Apr 26 12:42:51 2018//TOPENBSD_7_3
+/net.c/1.15/Wed Feb  8 08:24:29 2023//TOPENBSD_7_3
+/sprint.c/1.16/Thu Aug 20 22:32:41 2015//TOPENBSD_7_3
+/util.c/1.37/Mon Dec 26 19:16:01 2022//TOPENBSD_7_3
+D

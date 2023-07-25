@@ -1,0 +1,14 @@
+/01base.t/1.3/Wed Feb 13 21:15:16 2019/-ko/TOPENBSD_7_3
+/02core.t/1.3/Wed Feb 13 21:15:16 2019/-ko/TOPENBSD_7_3
+/02core_dst.t/1.3/Mon Mar  1 23:19:51 2021/-ko/TOPENBSD_7_3
+/03compare.t/1.1.1.2/Wed Feb 13 21:11:22 2019/-ko/TOPENBSD_7_3
+/04mjd.t/1.1.1.1/Fri Sep 24 14:49:05 2010/-ko/TOPENBSD_7_3
+/05overload.t/1.1.1.1/Fri Sep 24 14:49:05 2010/-ko/TOPENBSD_7_3
+/06large.t/1.1.1.1/Mon Mar  1 23:15:38 2021/-ko/TOPENBSD_7_3
+/06subclass.t/1.3/Mon Dec 30 02:13:48 2019/-ko/TOPENBSD_7_3
+/07arith.t/1.1.1.3/Wed Feb 13 21:11:22 2019/-ko/TOPENBSD_7_3
+/08truncate.t/1.1.1.1/Mon Mar  1 23:15:38 2021/-ko/TOPENBSD_7_3
+/09locales.t/1.1.1.1/Mon Mar  1 23:15:38 2021/-ko/TOPENBSD_7_3
+/10overload.t/1.1.1.1/Mon Mar  1 23:15:38 2021/-ko/TOPENBSD_7_3
+/99legacy.t/1.1.1.1/Mon Mar  1 23:15:38 2021/-ko/TOPENBSD_7_3
+D/lib////

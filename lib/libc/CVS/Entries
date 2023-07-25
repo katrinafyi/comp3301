@@ -1,0 +1,33 @@
+/Makefile/1.42/Tue Nov 12 04:38:27 2019//TOPENBSD_7_3
+/Makefile.inc/1.30/Sat Jan  1 23:47:14 2022//TOPENBSD_7_3
+/Symbols.list/1.81/Sat Feb 11 23:07:28 2023//TOPENBSD_7_3
+/shlib_version/1.215/Sat Feb 11 23:07:51 2023//TOPENBSD_7_3
+D/arch////
+D/asr////
+D/citrus////
+D/compat-43////
+D/crypt////
+D/db////
+D/dlfcn////
+D/gdtoa////
+D/gen////
+D/gmon////
+D/hash////
+D/hidden////
+D/include////
+D/locale////
+D/net////
+D/nls////
+D/quad////
+D/regex////
+D/rpc////
+D/softfloat////
+D/stdio////
+D/stdlib////
+D/string////
+D/sys////
+D/termios////
+D/thread////
+D/time////
+D/uuid////
+D/yp////

@@ -1,0 +1,28 @@
+/Makefile/1.19/Sun May 12 21:01:46 2019//TOPENBSD_7_3
+/auth.c/1.40/Fri May  6 15:51:09 2022//TOPENBSD_7_3
+/cbcp.c/1.9/Sat Jul 28 22:57:27 2018//TOPENBSD_7_3
+/cbcp.h/1.2/Fri Sep 13 18:19:45 2002//TOPENBSD_7_3
+/ccp.c/1.13/Tue Oct 27 23:59:53 2009//TOPENBSD_7_3
+/ccp.h/1.6/Fri Sep 13 00:12:10 2002//TOPENBSD_7_3
+/chap.c/1.20/Wed Mar  8 04:43:14 2023//TOPENBSD_7_3
+/chap.h/1.8/Fri Sep 13 00:12:10 2002//TOPENBSD_7_3
+/demand.c/1.11/Fri Jan 16 06:40:19 2015//TOPENBSD_7_3
+/fsm.c/1.8/Tue Oct 27 23:59:53 2009//TOPENBSD_7_3
+/fsm.h/1.5/Mon Jul  1 19:31:37 2002//TOPENBSD_7_3
+/ipcp.c/1.15/Mon Dec 14 03:25:59 2015//TOPENBSD_7_3
+/ipcp.h/1.7/Mon Jul  1 19:31:37 2002//TOPENBSD_7_3
+/lcp.c/1.14/Wed Mar  8 04:43:14 2023//TOPENBSD_7_3
+/lcp.h/1.7/Mon Jul  1 19:31:37 2002//TOPENBSD_7_3
+/magic.c/1.10/Sun Sep 29 16:24:22 2013//TOPENBSD_7_3
+/magic.h/1.4/Mon Jul  1 19:31:37 2002//TOPENBSD_7_3
+/main.c/1.56/Wed Mar  8 04:43:14 2023//TOPENBSD_7_3
+/options.c/1.30/Wed Dec 28 21:30:18 2022//TOPENBSD_7_3
+/patchlevel.h/1.7/Fri May  8 04:52:30 1998//TOPENBSD_7_3
+/pathnames.h/1.6/Mon Jun  4 14:59:45 2007//TOPENBSD_7_3
+/pppd.8/1.48/Thu Mar 31 17:27:31 2022//TOPENBSD_7_3
+/pppd.h/1.22/Fri Nov 17 20:48:30 2017//TOPENBSD_7_3
+/sys-bsd.c/1.32/Sun Oct 24 21:24:19 2021//TOPENBSD_7_3
+/upap.c/1.11/Fri Nov 17 20:48:30 2017//TOPENBSD_7_3
+/upap.h/1.6/Mon Jul  1 19:31:37 2002//TOPENBSD_7_3
+D/chat////
+D/pppstats////

@@ -1,0 +1,14 @@
+/Makefile/1.14/Mon Jul 10 21:30:37 2017//TOPENBSD_7_3
+/acl.c/1.17/Wed Dec 28 21:30:19 2022//TOPENBSD_7_3
+/acl.h/1.7/Mon Jun  2 21:58:27 2003//TOPENBSD_7_3
+/securenet/1.2/Wed Aug  4 22:12:36 1999//TOPENBSD_7_3
+/securenet.5/1.12/Thu Sep 10 15:16:44 2015//TOPENBSD_7_3
+/ypserv.8/1.30/Sun Nov  1 21:32:04 2020//TOPENBSD_7_3
+/ypserv.acl/1.4/Thu Apr 26 12:48:10 2018//TOPENBSD_7_3
+/ypserv.acl.5/1.27/Thu Mar 31 17:27:32 2022//TOPENBSD_7_3
+/ypserv.c/1.45/Wed Mar  8 04:43:15 2023//TOPENBSD_7_3
+/ypserv.h/1.1/Tue Jul 15 06:10:46 2003//TOPENBSD_7_3
+/ypserv_db.c/1.32/Sat Oct  9 18:43:51 2021//TOPENBSD_7_3
+/ypserv_proc.c/1.30/Wed Mar  8 04:43:15 2023//TOPENBSD_7_3
+/ypv1.x/1.1/Sun Jun 22 23:57:07 2003//TOPENBSD_7_3
+D

@@ -1,0 +1,15 @@
+/CMakeLists.txt/1.1.1.3/Fri Dec 17 12:25:21 2021/-ko/TOPENBSD_7_3
+/lldb.cpp/1.1.1.3/Fri Dec 17 12:25:21 2021/-ko/TOPENBSD_7_3
+D/API////
+D/Breakpoint////
+D/Commands////
+D/Core////
+D/DataFormatters////
+D/Expression////
+D/Host////
+D/Initialization////
+D/Interpreter////
+D/Plugins////
+D/Symbol////
+D/Target////
+D/Utility////

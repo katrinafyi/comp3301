@@ -1,0 +1,14 @@
+/e_remainder.c/1.8/Mon Sep 12 19:47:01 2016//TOPENBSD_7_3
+/e_remainderf.c/1.6/Mon Sep 12 19:47:01 2016//TOPENBSD_7_3
+/e_sqrt.c/1.12/Mon Sep 12 19:47:01 2016//TOPENBSD_7_3
+/e_sqrtf.c/1.6/Mon Sep 12 19:47:01 2016//TOPENBSD_7_3
+/fenv.c/1.7/Fri Jan 27 16:43:33 2023//TOPENBSD_7_3
+/s_ceil.c/1.11/Fri Jan 27 16:43:33 2023//TOPENBSD_7_3
+/s_ceilf.c/1.9/Fri Jan 27 16:43:33 2023//TOPENBSD_7_3
+/s_floor.c/1.13/Fri Jan 27 16:43:33 2023//TOPENBSD_7_3
+/s_floorf.c/1.11/Fri Jan 27 16:43:33 2023//TOPENBSD_7_3
+/s_rint.c/1.12/Mon Sep 12 19:47:01 2016//TOPENBSD_7_3
+/s_rintf.c/1.6/Mon Sep 12 19:47:02 2016//TOPENBSD_7_3
+/s_trunc.c/1.9/Fri Jan 27 16:43:33 2023//TOPENBSD_7_3
+/s_truncf.c/1.6/Fri Jan 27 16:43:33 2023//TOPENBSD_7_3
+D

@@ -1,0 +1,9 @@
+/Makefile/1.1/Tue Jun 28 16:11:30 2022//TOPENBSD_7_3
+/bgplgd.8/1.7/Mon Mar 13 17:31:28 2023//TOPENBSD_7_3
+/bgplgd.c/1.3/Mon Oct 17 15:42:19 2022//TOPENBSD_7_3
+/bgplgd.h/1.3/Mon Mar 13 17:31:28 2023//TOPENBSD_7_3
+/http.h/1.1/Tue Jun 28 16:11:30 2022//TOPENBSD_7_3
+/qs.c/1.4.4.1/Mon May 15 09:31:14 2023//TOPENBSD_7_3
+/slowcgi.c/1.5/Thu Oct 27 13:24:22 2022//TOPENBSD_7_3
+/slowcgi.h/1.1/Tue Jun 28 16:11:30 2022//TOPENBSD_7_3
+D

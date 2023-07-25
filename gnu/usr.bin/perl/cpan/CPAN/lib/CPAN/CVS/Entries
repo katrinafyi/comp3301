@@ -1,0 +1,32 @@
+/Author.pm/1.3/Sun Feb  5 00:31:55 2017/-ko/TOPENBSD_7_3
+/Bundle.pm/1.5/Mon Mar  1 23:19:44 2021/-ko/TOPENBSD_7_3
+/CacheMgr.pm/1.3/Sun Feb  5 00:31:55 2017/-ko/TOPENBSD_7_3
+/Complete.pm/1.3/Sun Feb  5 00:31:55 2017/-ko/TOPENBSD_7_3
+/Debug.pm/1.3/Sun Feb  5 00:31:55 2017/-ko/TOPENBSD_7_3
+/DeferredCode.pm/1.3/Sun Feb  5 00:31:55 2017/-ko/TOPENBSD_7_3
+/Distribution.pm/1.7/Wed Feb 15 01:36:15 2023/-ko/TOPENBSD_7_3
+/Distroprefs.pm/1.3/Sun Feb  5 00:31:55 2017/-ko/TOPENBSD_7_3
+/Distrostatus.pm/1.3/Sun Feb  5 00:31:55 2017/-ko/TOPENBSD_7_3
+/FTP.pm/1.6/Wed Feb 15 01:36:15 2023/-ko/TOPENBSD_7_3
+/FirstTime.pm/1.6/Wed Feb 15 01:36:15 2023/-ko/TOPENBSD_7_3
+/HandleConfig.pm/1.6/Wed Feb 15 01:36:15 2023/-ko/TOPENBSD_7_3
+/Index.pm/1.5/Wed Feb 15 01:36:15 2023/-ko/TOPENBSD_7_3
+/InfoObj.pm/1.3/Sun Feb  5 00:31:55 2017/-ko/TOPENBSD_7_3
+/Kwalify.pm/1.3/Sun Feb  5 00:31:55 2017/-ko/TOPENBSD_7_3
+/Mirrors.pm/1.6/Mon Mar  1 23:19:44 2021/-ko/TOPENBSD_7_3
+/Module.pm/1.4/Wed Feb 13 21:15:07 2019/-ko/TOPENBSD_7_3
+/Nox.pm/1.3/Sun Feb  5 00:31:55 2017/-ko/TOPENBSD_7_3
+/Plugin.pm/1.3/Mon Dec 30 02:13:42 2019/-ko/TOPENBSD_7_3
+/Prompt.pm/1.3/Sun Feb  5 00:31:55 2017/-ko/TOPENBSD_7_3
+/Queue.pm/1.4/Mon Mar  1 23:19:44 2021/-ko/TOPENBSD_7_3
+/Shell.pm/1.6/Mon Mar  1 23:19:44 2021/-ko/TOPENBSD_7_3
+/Tarzip.pm/1.4/Mon Mar  1 23:19:44 2021/-ko/TOPENBSD_7_3
+/URL.pm/1.3/Sun Feb  5 00:31:55 2017/-ko/TOPENBSD_7_3
+/Version.pm/1.3/Sun Feb  5 00:31:55 2017/-ko/TOPENBSD_7_3
+D/API////
+D/Exception////
+D/FTP////
+D/HTTP////
+D/Kwalify////
+D/LWP////
+D/Plugin////

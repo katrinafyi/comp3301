@@ -1,0 +1,13 @@
+/Makefile/1.94/Sat Apr 16 09:32:40 2022//TOPENBSD_7_3
+/TODO/1.26/Mon Apr 18 18:49:34 2011//TOPENBSD_7_3
+/package.5/1.32/Wed Dec 28 21:30:18 2022//TOPENBSD_7_3
+/pkg_add/1.486/Tue May  4 10:19:28 2021//TOPENBSD_7_3
+/pkg_add.1/1.167/Fri Aug 12 10:38:37 2022//TOPENBSD_7_3
+/pkg_check.8/1.12/Mon Nov 16 17:52:08 2020//TOPENBSD_7_3
+/pkg_create.1/1.128/Wed Jan 25 13:25:07 2023//TOPENBSD_7_3
+/pkg_delete.1/1.59/Tue Jul 10 10:20:51 2018//TOPENBSD_7_3
+/pkg_info.1/1.65/Sun May 29 12:46:28 2022//TOPENBSD_7_3
+/pkg_mklocatedb/1.47/Tue May  4 08:41:03 2021//TOPENBSD_7_3
+/pkg_mklocatedb.1/1.18/Fri Nov 26 12:08:35 2021//TOPENBSD_7_3
+/pkg_sign.1/1.13/Fri Feb 11 15:36:40 2022//TOPENBSD_7_3
+D/OpenBSD////

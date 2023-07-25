@@ -1,0 +1,15 @@
+/Makefile.inc/1.9/Thu Dec 11 20:41:08 2014//TOPENBSD_7_3
+/bcmp.S/1.6/Sun Dec  4 08:22:13 2022//TOPENBSD_7_3
+/bzero.S/1.7/Sun Dec  4 08:22:13 2022//TOPENBSD_7_3
+/ffs.S/1.7/Thu Jan 18 08:23:44 2018//TOPENBSD_7_3
+/memchr.S/1.6/Wed Nov 29 05:13:57 2017//TOPENBSD_7_3
+/memcmp.S/1.6/Wed Nov 29 05:13:57 2017//TOPENBSD_7_3
+/memmove.S/1.8/Sun Dec  4 08:22:13 2022//TOPENBSD_7_3
+/memset.S/1.6/Wed Nov 29 05:13:57 2017//TOPENBSD_7_3
+/strcat.S/1.10/Tue Nov 28 06:55:49 2017//TOPENBSD_7_3
+/strchr.S/1.8/Wed Nov 29 05:13:57 2017//TOPENBSD_7_3
+/strcmp.S/1.5/Wed Nov 29 05:13:57 2017//TOPENBSD_7_3
+/strcpy.S/1.10/Tue Nov 28 06:55:49 2017//TOPENBSD_7_3
+/strncmp.S/1.7/Tue Dec 27 17:10:05 2022//TOPENBSD_7_3
+/strrchr.S/1.8/Wed Nov 29 05:13:57 2017//TOPENBSD_7_3
+D

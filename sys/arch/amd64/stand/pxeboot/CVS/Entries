@@ -1,0 +1,8 @@
+/Makefile/1.41/Thu Jul  8 20:04:57 2021//TOPENBSD_7_3
+/conf.c/1.54/Fri Aug 12 20:18:58 2022//TOPENBSD_7_3
+/devopen.c/1.11/Sun Jul 13 09:26:08 2014//TOPENBSD_7_3
+/open.c/1.2/Mon Mar 14 23:08:05 2016//TOPENBSD_7_3
+/pxe_udp.c/1.1/Wed Nov 19 20:09:58 2014//TOPENBSD_7_3
+/pxeboot.8/1.14/Tue May 20 22:49:43 2014//TOPENBSD_7_3
+/srt0.S/1.4/Thu Dec  8 01:25:44 2022//TOPENBSD_7_3
+D

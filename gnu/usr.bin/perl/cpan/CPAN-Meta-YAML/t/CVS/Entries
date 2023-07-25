@@ -1,0 +1,19 @@
+/01_api.t/1.2/Sun Feb  5 00:31:56 2017/-kb/TOPENBSD_7_3
+/01_compile.t/1.2/Sun Feb  5 00:31:56 2017/-ko/TOPENBSD_7_3
+/10_read.t/1.2/Sun Feb  5 00:31:56 2017/-kb/TOPENBSD_7_3
+/11_read_string.t/1.2/Sun Feb  5 00:31:56 2017/-kb/TOPENBSD_7_3
+/12_write.t/1.2/Sun Feb  5 00:31:56 2017/-kb/TOPENBSD_7_3
+/13_write_string.t/1.2/Sun Feb  5 00:31:56 2017/-kb/TOPENBSD_7_3
+/20_subclass.t/1.2/Sun Feb  5 00:31:56 2017/-ko/TOPENBSD_7_3
+/21_yamlpm_compat.t/1.2/Sun Feb  5 00:31:56 2017/-kb/TOPENBSD_7_3
+/30_yaml_spec_tml.t/1.2/Sun Feb  5 00:31:56 2017/-kb/TOPENBSD_7_3
+/31_local_tml.t/1.2/Sun Feb  5 00:31:56 2017/-kb/TOPENBSD_7_3
+/32_world_tml.t/1.2/Sun Feb  5 00:31:56 2017/-kb/TOPENBSD_7_3
+/86_fail.t/1.1/Sun Feb  5 00:31:56 2017/-ko/TOPENBSD_7_3
+/README.md/1.2/Sun Feb  5 00:31:56 2017/-kb/TOPENBSD_7_3
+/tml/1.2/Sun Feb  5 00:31:56 2017/-kb/TOPENBSD_7_3
+D/data////
+D/lib////
+D/tml-local////
+D/tml-spec////
+D/tml-world////

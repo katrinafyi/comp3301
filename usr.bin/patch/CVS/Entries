@@ -1,0 +1,16 @@
+/Makefile/1.5/Fri Oct 16 07:33:47 2015//TOPENBSD_7_3
+/backupfile.c/1.22/Mon Oct 12 13:58:27 2020//TOPENBSD_7_3
+/backupfile.h/1.6/Mon Jul 28 18:35:36 2003//TOPENBSD_7_3
+/common.h/1.30/Mon Dec  2 22:17:32 2019//TOPENBSD_7_3
+/ed.c/1.4/Mon Dec  2 22:17:32 2019//TOPENBSD_7_3
+/ed.h/1.1/Fri Oct 16 07:33:47 2015//TOPENBSD_7_3
+/inp.c/1.49/Fri Jun 28 13:35:02 2019//TOPENBSD_7_3
+/inp.h/1.8/Fri Aug 15 08:00:51 2003//TOPENBSD_7_3
+/mkpath.c/1.4/Tue May 20 01:25:23 2014//TOPENBSD_7_3
+/patch.1/1.36/Thu Mar 31 17:27:26 2022//TOPENBSD_7_3
+/patch.c/1.71/Wed Aug  3 07:30:37 2022//TOPENBSD_7_3
+/pch.c/1.63/Mon Dec 26 19:16:02 2022//TOPENBSD_7_3
+/pch.h/1.13/Wed Dec 11 20:10:17 2019//TOPENBSD_7_3
+/util.c/1.46/Sun Oct 24 21:24:17 2021//TOPENBSD_7_3
+/util.h/1.18/Sat Aug 17 14:25:06 2019//TOPENBSD_7_3
+D

@@ -1,0 +1,29 @@
+/BUILD.gn/1.1.1.3/Fri Dec 17 12:23:45 2021/-ko/TOPENBSD_7_3
+/enable.gni/1.1.1.1/Fri Dec 17 12:23:45 2021/-ko/TOPENBSD_7_3
+D/abseil////
+D/altera////
+D/android////
+D/boost////
+D/bugprone////
+D/cert////
+D/concurrency////
+D/cppcoreguidelines////
+D/darwin////
+D/fuchsia////
+D/google////
+D/hicpp////
+D/linuxkernel////
+D/llvm////
+D/llvmlibc////
+D/misc////
+D/modernize////
+D/mpi////
+D/objc////
+D/openmp////
+D/performance////
+D/plugin////
+D/portability////
+D/readability////
+D/tool////
+D/utils////
+D/zircon////

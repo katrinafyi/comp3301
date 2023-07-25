@@ -1,0 +1,19 @@
+/Makefile/1.27/Sat Oct 22 17:50:28 2022//TOPENBSD_7_3
+D/altivec_ast////
+D/arch////
+D/copy////
+D/crypto////
+D/ddb////
+D/dev////
+D/ffs////
+D/fifofs////
+D/fileops////
+D/kern////
+D/mfs_noperm////
+D/net////
+D/netinet////
+D/netinet6////
+D/nfs////
+D/ptrace////
+D/sys////
+D/uvm////

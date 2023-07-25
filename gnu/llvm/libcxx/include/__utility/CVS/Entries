@@ -1,0 +1,15 @@
+/__decay_copy.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/as_const.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/cmp.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/declval.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/exchange.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/forward.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/in_place.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/integer_sequence.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/move.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/pair.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/piecewise_construct.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/rel_ops.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/swap.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/to_underlying.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+D

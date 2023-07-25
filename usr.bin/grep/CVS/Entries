@@ -1,0 +1,10 @@
+/Makefile/1.7/Wed Mar 30 06:38:46 2016//TOPENBSD_7_3
+/binary.c/1.20/Wed Dec 15 19:22:44 2021//TOPENBSD_7_3
+/file.c/1.17/Wed Dec 15 19:22:44 2021//TOPENBSD_7_3
+/grep.1/1.52/Wed Jan  4 07:33:00 2023//TOPENBSD_7_3
+/grep.c/1.67/Sun Jun 26 18:48:10 2022//TOPENBSD_7_3
+/grep.h/1.29/Sun Jun 26 10:57:36 2022//TOPENBSD_7_3
+/mmfile.c/1.19/Sun Jan 27 14:43:09 2019//TOPENBSD_7_3
+/queue.c/1.7/Fri Jan 16 06:40:08 2015//TOPENBSD_7_3
+/util.c/1.67/Tue Jul 12 18:09:31 2022//TOPENBSD_7_3
+D

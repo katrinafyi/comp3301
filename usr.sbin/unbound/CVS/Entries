@@ -1,0 +1,38 @@
+/LICENSE/1.1.1.2/Sun Mar 16 11:38:07 2014//TOPENBSD_7_3
+/Makefile.bsd-wrapper/1.20/Mon Aug 24 15:33:33 2020//TOPENBSD_7_3
+/Makefile.in/1.41/Thu Oct 20 08:26:14 2022//TOPENBSD_7_3
+/README-Travis.md/1.1.1.2/Wed Feb 23 11:57:23 2022//TOPENBSD_7_3
+/README.md/1.7/Wed Feb 23 12:04:05 2022//TOPENBSD_7_3
+/SECURITY.md/1.1.1.1/Mon Aug 29 16:03:46 2022//TOPENBSD_7_3
+/ac_pkg_swig.m4/1.2/Sat Aug 12 11:22:45 2017//TOPENBSD_7_3
+/aclocal.m4/1.9/Fri Mar 12 19:45:27 2021//TOPENBSD_7_3
+/acx_nlnetlabs.m4/1.11/Thu Oct 20 08:26:14 2022//TOPENBSD_7_3
+/acx_python.m4/1.6/Tue Jun  7 15:42:53 2022//TOPENBSD_7_3
+/ax_pthread.m4/1.2/Sat Mar  5 14:40:34 2016//TOPENBSD_7_3
+/config.guess/1.14/Thu Oct 20 08:26:14 2022//TOPENBSD_7_3
+/config.h.in/1.28/Thu Oct 20 08:26:14 2022//TOPENBSD_7_3
+/config.sub/1.13/Thu Oct 20 08:26:14 2022//TOPENBSD_7_3
+/configure/1.49/Thu Oct 20 08:26:14 2022//TOPENBSD_7_3
+/configure.ac/1.49/Thu Oct 20 08:26:14 2022//TOPENBSD_7_3
+/install-sh/1.5/Thu Mar 19 17:48:06 2020//TOPENBSD_7_3
+/ltmain.sh/1.4/Fri Feb  8 10:29:08 2019//TOPENBSD_7_3
+/systemd.m4/1.1/Fri Feb 17 18:53:32 2017//TOPENBSD_7_3
+D/cachedb////
+D/daemon////
+D/dns64////
+D/dnscrypt////
+D/dnstap////
+D/doc////
+D/dynlibmod////
+D/edns-subnet////
+D/ipsecmod////
+D/ipset////
+D/iterator////
+D/libunbound////
+D/respip////
+D/services////
+D/sldns////
+D/smallapp////
+D/testcode////
+D/util////
+D/validator////

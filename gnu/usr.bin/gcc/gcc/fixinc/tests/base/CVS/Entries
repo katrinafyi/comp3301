@@ -1,0 +1,47 @@
+/_G_config.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/assert.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/c_asm.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/ctrl-quotes-def-1.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/ctype.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/curses.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/fcntl.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/fixinc-test-limits.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/inttypes.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/io-quotes-def-1.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/libgen.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/malloc.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/math.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/obstack.h/1.1.1.1/Fri Dec 24 23:51:47 2004//TOPENBSD_7_3
+/pthread.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/reg_types.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/regex.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/stdio.h/1.1.1.2/Fri Dec 24 23:51:47 2004//TOPENBSD_7_3
+/stdio_tag.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/stdlib.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/string.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/strings.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/sym.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/testing.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/time.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/tinfo.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/unistd.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+/widec.h/1.1.1.1/Sat Nov 29 12:35:52 2003//TOPENBSD_7_3
+D/X11////
+D/Xm////
+D/ansi////
+D/arch////
+D/arpa////
+D/bsd////
+D/hsfs////
+D/internal////
+D/machine////
+D/netdnet////
+D/netinet////
+D/pixrect////
+D/rpc////
+D/rpcsvc////
+D/sparc////
+D/sundev////
+D/sunwindow////
+D/sys////
+D/types////

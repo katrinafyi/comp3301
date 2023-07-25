@@ -1,0 +1,37 @@
+/Makefile/1.82/Wed Dec  1 07:36:03 2021//TOPENBSD_7_3
+/check_sym/1.11/Mon Jan  3 03:40:48 2022//TOPENBSD_7_3
+D/csu////
+D/libagentx////
+D/libarch////
+D/libc////
+D/libcbor////
+D/libcrypto////
+D/libcsi////
+D/libcurses////
+D/libedit////
+D/libelf////
+D/libevent////
+D/libexpat////
+D/libfido2////
+D/libform////
+D/libfuse////
+D/libkeynote////
+D/libkvm////
+D/libl////
+D/libm////
+D/libmenu////
+D/libossaudio////
+D/libpanel////
+D/libpcap////
+D/libpthread////
+D/libradius////
+D/librpcsvc////
+D/librthread////
+D/libskey////
+D/libsndio////
+D/libssl////
+D/libtls////
+D/libusbhid////
+D/libutil////
+D/liby////
+D/libz////

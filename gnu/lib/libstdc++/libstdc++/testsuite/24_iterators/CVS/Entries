@@ -1,0 +1,11 @@
+/back_insert_iterator.cc/1.1.1.1/Mon Jan  5 15:46:40 2004//TOPENBSD_7_3
+/front_insert_iterator.cc/1.1.1.1/Mon Jan  5 15:46:40 2004//TOPENBSD_7_3
+/insert_iterator.cc/1.1.1.1/Mon Jan  5 15:46:40 2004//TOPENBSD_7_3
+/istream_iterator.cc/1.1.1.1/Mon Jan  5 15:46:40 2004//TOPENBSD_7_3
+/istreambuf_iterator.cc/1.1.1.1/Mon Jan  5 15:46:42 2004//TOPENBSD_7_3
+/iterator.cc/1.1.1.1/Mon Jan  5 15:46:42 2004//TOPENBSD_7_3
+/ostream_iterator.cc/1.1.1.1/Mon Jan  5 15:46:42 2004//TOPENBSD_7_3
+/ostreambuf_iterator.cc/1.1.1.1/Mon Jan  5 15:46:42 2004//TOPENBSD_7_3
+/rel_ops.cc/1.1.1.1/Mon Jan  5 15:46:42 2004//TOPENBSD_7_3
+/reverse_iterator.cc/1.1.1.1/Mon Jan  5 15:46:42 2004//TOPENBSD_7_3
+D

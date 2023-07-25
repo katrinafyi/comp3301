@@ -1,0 +1,5 @@
+/Makefile/1.5/Sat Sep 17 12:51:23 2022//TOPENBSD_7_3
+/socket.c/1.1/Mon Sep  5 05:34:25 2022//TOPENBSD_7_3
+/syscalls.c/1.35/Mon Sep  5 05:34:25 2022//TOPENBSD_7_3
+/unveil.h/1.1/Mon Sep  5 05:34:25 2022//TOPENBSD_7_3
+D

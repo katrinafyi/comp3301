@@ -1,0 +1,10 @@
+/adb.h/1.6/Fri Oct 21 22:42:36 2022//TOPENBSD_7_3
+/adb_subr.c/1.4/Sat Mar  9 11:33:24 2013//TOPENBSD_7_3
+/akbd.c/1.16/Fri Oct 21 22:42:36 2022//TOPENBSD_7_3
+/akbdmap.h/1.11/Mon Jan 23 09:36:39 2023//TOPENBSD_7_3
+/akbdvar.h/1.4/Sun Jan 29 10:54:21 2012//TOPENBSD_7_3
+/ams.c/1.8/Wed Apr  6 18:59:27 2022//TOPENBSD_7_3
+/amsvar.h/1.1/Wed Jan 18 23:21:17 2006//TOPENBSD_7_3
+/files.adb/1.2/Sat Oct 18 12:21:57 2014//TOPENBSD_7_3
+/keyboard.h/1.5/Mon Jun 13 16:29:11 2011//TOPENBSD_7_3
+D

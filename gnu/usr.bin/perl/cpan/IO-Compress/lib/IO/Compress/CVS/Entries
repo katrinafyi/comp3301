@@ -1,0 +1,12 @@
+/Base.pm/1.7/Wed Feb 15 01:36:18 2023/-ko/TOPENBSD_7_3
+/Bzip2.pm/1.7/Wed Feb 15 01:36:18 2023/-ko/TOPENBSD_7_3
+/Deflate.pm/1.7/Wed Feb 15 01:36:18 2023/-ko/TOPENBSD_7_3
+/FAQ.pod/1.6/Wed Feb 15 01:36:18 2023/-ko/TOPENBSD_7_3
+/Gzip.pm/1.7/Wed Feb 15 01:36:18 2023/-ko/TOPENBSD_7_3
+/RawDeflate.pm/1.7/Wed Feb 15 01:36:18 2023/-ko/TOPENBSD_7_3
+/Zip.pm/1.7/Wed Feb 15 01:36:18 2023/-ko/TOPENBSD_7_3
+D/Adapter////
+D/Base////
+D/Gzip////
+D/Zip////
+D/Zlib////

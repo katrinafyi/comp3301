@@ -1,0 +1,21 @@
+/Makefile/1.16/Fri Nov 20 18:53:42 2015//TOPENBSD_7_3
+/client.c/1.117/Thu Mar 24 07:37:19 2022//TOPENBSD_7_3
+/config.c/1.33/Sun Apr 12 14:20:56 2020//TOPENBSD_7_3
+/constraint.c/1.54/Sun Nov 27 13:19:00 2022//TOPENBSD_7_3
+/control.c/1.19/Wed Apr 21 09:38:11 2021//TOPENBSD_7_3
+/log.c/1.19/Wed Jul  3 05:04:19 2019//TOPENBSD_7_3
+/log.h/1.6/Mon Dec 13 18:28:40 2021//TOPENBSD_7_3
+/ntp.c/1.170/Sun Nov 27 13:19:00 2022//TOPENBSD_7_3
+/ntp.h/1.14/Thu Jan 30 15:55:41 2020//TOPENBSD_7_3
+/ntp_dns.c/1.27/Sun Oct 24 21:24:19 2021//TOPENBSD_7_3
+/ntp_msg.c/1.22/Sat Sep  3 11:52:06 2016//TOPENBSD_7_3
+/ntpctl.8/1.9/Thu Mar  2 17:09:53 2023//TOPENBSD_7_3
+/ntpd.8/1.49/Thu Mar  2 17:09:53 2023//TOPENBSD_7_3
+/ntpd.c/1.132/Fri Jul 16 14:36:09 2021//TOPENBSD_7_3
+/ntpd.conf.5/1.49/Thu Mar  2 17:09:53 2023//TOPENBSD_7_3
+/ntpd.h/1.152/Sun Nov 27 13:19:00 2022//TOPENBSD_7_3
+/parse.y/1.78/Fri Oct 15 15:01:28 2021//TOPENBSD_7_3
+/sensors.c/1.54/Mon Nov 11 06:32:52 2019//TOPENBSD_7_3
+/server.c/1.44/Sat Sep  3 11:52:06 2016//TOPENBSD_7_3
+/util.c/1.25/Thu Jan 30 15:55:41 2020//TOPENBSD_7_3
+D

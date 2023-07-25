@@ -1,0 +1,17 @@
+/addressof.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/allocation_guard.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/allocator.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/allocator_arg_t.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/allocator_traits.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/auto_ptr.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/compressed_pair.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/construct_at.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/pointer_safety.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/pointer_traits.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/raw_storage_iterator.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/shared_ptr.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/temporary_buffer.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/uninitialized_algorithms.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/unique_ptr.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+/uses_allocator.h/1.1.1.1/Fri Dec 17 12:26:14 2021/-ko/TOPENBSD_7_3
+D

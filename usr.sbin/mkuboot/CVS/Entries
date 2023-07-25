@@ -1,0 +1,7 @@
+/Makefile/1.5/Fri Oct 27 08:33:40 2017//TOPENBSD_7_3
+/copy_elf.c/1.7/Tue Apr 28 04:17:42 2020//TOPENBSD_7_3
+/copy_elf32.c/1.2/Tue Jan 20 04:41:01 2015//TOPENBSD_7_3
+/copy_elf64.c/1.2/Tue Jan 20 04:41:01 2015//TOPENBSD_7_3
+/mkuboot.8/1.2/Tue Jun  1 02:13:15 2021//TOPENBSD_7_3
+/mkuboot.c/1.11/Tue Jun 22 14:52:33 2021//TOPENBSD_7_3
+D

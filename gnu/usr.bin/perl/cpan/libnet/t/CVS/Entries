@@ -1,0 +1,16 @@
+/config.t/1.5/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/datasend.t/1.5/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/ftp.t/1.5/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/hostname.t/1.5/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/netrc.t/1.5/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/nntp.t/1.5/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/nntp_ipv6.t/1.3/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/nntp_ssl.t/1.2/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/pop3_ipv6.t/1.3/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/pop3_ssl.t/1.2/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/require.t/1.5/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/smtp.t/1.5/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/smtp_ipv6.t/1.3/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/smtp_ssl.t/1.2/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+/time.t/1.5/Wed Feb 15 01:36:25 2023/-ko/TOPENBSD_7_3
+D

@@ -1,0 +1,11 @@
+/Makefile/1.3/Sat Oct 10 19:28:54 2015//TOPENBSD_7_3
+/bcode.c/1.63/Wed Mar  8 04:43:10 2023//TOPENBSD_7_3
+/bcode.h/1.8/Mon Feb 16 20:53:34 2015//TOPENBSD_7_3
+/dc.1/1.35/Mon Mar  8 02:47:27 2021//TOPENBSD_7_3
+/dc.c/1.20/Wed Dec  6 13:48:05 2017//TOPENBSD_7_3
+/extern.h/1.5/Sat Oct 10 19:28:54 2015//TOPENBSD_7_3
+/inout.c/1.23/Wed Mar  8 04:43:10 2023//TOPENBSD_7_3
+/main.c/1.1/Sat Oct 10 19:28:54 2015//TOPENBSD_7_3
+/mem.c/1.10/Sun Dec 17 08:21:10 2017//TOPENBSD_7_3
+/stack.c/1.15/Wed Dec  6 13:48:05 2017//TOPENBSD_7_3
+D/USD.doc////

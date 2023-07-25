@@ -1,0 +1,20 @@
+/autoconf.c/1.47/Fri Sep  2 20:06:56 2022//TOPENBSD_7_3
+/clock.c/1.54/Sat Feb  4 23:17:05 2023//TOPENBSD_7_3
+/conf.c/1.75/Fri Sep  2 20:06:56 2022//TOPENBSD_7_3
+/cpu.c/1.85/Sun Mar 13 12:33:01 2022//TOPENBSD_7_3
+/disksubr.c/1.83/Tue Oct 11 23:39:08 2022//TOPENBSD_7_3
+/genassym.cf/1.26/Mon Jan 22 10:04:46 2018//TOPENBSD_7_3
+/locore.S/1.61/Thu Dec  8 01:25:45 2022//TOPENBSD_7_3
+/locore0.S/1.3/Thu Dec  8 01:25:45 2022//TOPENBSD_7_3
+/machdep.c/1.199/Sun Oct 30 17:43:39 2022//TOPENBSD_7_3
+/mainbus.c/1.28/Wed Mar  8 04:43:07 2023//TOPENBSD_7_3
+/mem.c/1.28/Sun Mar 13 12:33:01 2022//TOPENBSD_7_3
+/ofw_machdep.c/1.64/Thu Mar 11 11:16:59 2021//TOPENBSD_7_3
+/ofw_machdep.h/1.10/Thu Apr  2 19:27:51 2020//TOPENBSD_7_3
+/ofwreal.S/1.9/Thu Dec  8 01:25:45 2022//TOPENBSD_7_3
+/opendev.c/1.10/Thu Apr  2 19:27:51 2020//TOPENBSD_7_3
+/openfirm.c/1.13/Thu Apr  2 19:27:51 2020//TOPENBSD_7_3
+/openprom.c/1.5/Mon Sep 21 16:33:23 2020//TOPENBSD_7_3
+/rbus_machdep.c/1.13/Wed Aug  7 07:29:19 2013//TOPENBSD_7_3
+/wscons_machdep.c/1.6/Wed Jan 23 16:37:56 2008//TOPENBSD_7_3
+D

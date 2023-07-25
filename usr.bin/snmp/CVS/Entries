@@ -1,0 +1,12 @@
+/Makefile/1.3/Wed Sep 18 09:52:47 2019//TOPENBSD_7_3
+/mib.c/1.3/Mon Aug  3 14:45:54 2020//TOPENBSD_7_3
+/mib.h/1.10/Tue Mar 23 22:05:21 2021//TOPENBSD_7_3
+/smi.c/1.15/Thu Oct 21 08:17:34 2021//TOPENBSD_7_3
+/smi.h/1.4/Mon Dec 14 07:44:26 2020//TOPENBSD_7_3
+/snmp.1/1.22/Thu Mar 31 17:27:27 2022//TOPENBSD_7_3
+/snmp.c/1.11/Sun Aug  2 20:14:10 2020//TOPENBSD_7_3
+/snmp.h/1.7/Fri Jan 17 09:52:44 2020//TOPENBSD_7_3
+/snmpc.c/1.40/Mon Dec 26 19:16:03 2022//TOPENBSD_7_3
+/usm.c/1.7/Wed Jan  5 16:41:07 2022//TOPENBSD_7_3
+/usm.h/1.3/Wed Sep 18 09:54:36 2019//TOPENBSD_7_3
+D

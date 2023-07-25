@@ -1,0 +1,19 @@
+/Makefile/1.19/Sat Aug 20 14:13:48 2022//TOPENBSD_7_3
+D/constructor////
+D/dependencies////
+D/df_1_noopen////
+D/dlclose////
+D/dlopen////
+D/dlsym////
+D/edgecases////
+D/elf////
+D/hidden////
+D/init-env////
+D/initfirst////
+D/lazy////
+D/link-order////
+D/nodelete////
+D/noload////
+D/randomdata////
+D/subst////
+D/weak////

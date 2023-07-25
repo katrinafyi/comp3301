@@ -1,0 +1,27 @@
+/Makefile.am/1.6/Mon Jul 17 16:12:36 2006//TOPENBSD_7_3
+/Makefile.in/1.5/Mon Jul 17 16:12:36 2006//TOPENBSD_7_3
+/README/1.1.1.3/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/alloca.c/1.1.1.3/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/getopt.c/1.1.1.5/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/getopt.h/1.1.1.5/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/getopt1.c/1.1.1.5/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/getopt_.h/1.1.1.1/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/getopt_int.h/1.1.1.1/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/gettext.h/1.1.1.2/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/memcpy.c/1.1.1.3/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/memmove.c/1.1.1.3/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/mkstemp.c/1.1.1.1/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/strcase.h/1.1.1.1/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/strcasecmp.c/1.1.1.3/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/strdup.c/1.1.1.3/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/strdup.h/1.1.1.1/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/strerror.c/1.1.1.2/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/strncasecmp.c/1.1.1.2/Mon Jun 10 13:21:00 2002//TOPENBSD_7_3
+/substring.c/1.1.1.2/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/system.h/1.5/Mon Jul 17 16:12:36 2006//TOPENBSD_7_3
+/tempname.c/1.1.1.1/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/xalloc.h/1.1.1.1/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/xexit.c/1.1.1.2/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/xmalloc.c/1.1.1.2/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+/xstrdup.c/1.1.1.3/Mon Jul 17 16:03:41 2006//TOPENBSD_7_3
+D

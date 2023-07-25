@@ -1,0 +1,11 @@
+/Makefile/1.8/Tue Dec  1 18:36:13 2015//TOPENBSD_7_3
+/cmp.c/1.6/Tue Oct 27 23:59:21 2009//TOPENBSD_7_3
+/extern.h/1.10/Tue Dec  1 18:36:13 2015//TOPENBSD_7_3
+/ls.1/1.79/Mon Oct 24 13:46:58 2016//TOPENBSD_7_3
+/ls.c/1.54/Wed Oct  7 21:03:09 2020//TOPENBSD_7_3
+/ls.h/1.9/Thu May 30 16:34:32 2013//TOPENBSD_7_3
+/main.c/1.4/Tue Dec  4 02:27:00 2012//TOPENBSD_7_3
+/print.c/1.39/Wed Oct  7 21:03:09 2020//TOPENBSD_7_3
+/utf8.c/1.2/Mon Jan 18 19:06:37 2016//TOPENBSD_7_3
+/util.c/1.17/Tue Dec  1 18:36:13 2015//TOPENBSD_7_3
+D

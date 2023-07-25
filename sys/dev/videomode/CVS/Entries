@@ -1,0 +1,16 @@
+/Makefile.ediddevs/1.1/Thu Oct  8 20:35:44 2009//TOPENBSD_7_3
+/Makefile.videomode/1.1/Thu Oct  8 20:35:44 2009//TOPENBSD_7_3
+/devlist2h.awk/1.1/Thu Oct  8 20:35:44 2009//TOPENBSD_7_3
+/edid.c/1.4/Sun Jan  9 05:43:02 2022//TOPENBSD_7_3
+/ediddevs/1.1/Thu Oct  8 20:35:44 2009//TOPENBSD_7_3
+/ediddevs.h/1.1/Thu Oct  8 20:35:44 2009//TOPENBSD_7_3
+/ediddevs_data.h/1.1/Thu Oct  8 20:35:44 2009//TOPENBSD_7_3
+/edidreg.h/1.1/Thu Oct  8 20:35:44 2009//TOPENBSD_7_3
+/edidvar.h/1.1/Thu Oct  8 20:35:44 2009//TOPENBSD_7_3
+/modelines/1.1/Thu Oct  8 20:35:44 2009//TOPENBSD_7_3
+/modelines2c.awk/1.2/Wed Dec  5 23:20:22 2012//TOPENBSD_7_3
+/vesagtf.c/1.4/Sun Jan  9 05:43:02 2022//TOPENBSD_7_3
+/vesagtf.h/1.1/Thu Oct  8 20:35:44 2009//TOPENBSD_7_3
+/videomode.c/1.2/Wed Dec  5 23:20:22 2012//TOPENBSD_7_3
+/videomode.h/1.1/Thu Oct  8 20:35:44 2009//TOPENBSD_7_3
+D

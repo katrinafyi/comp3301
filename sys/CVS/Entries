@@ -1,0 +1,25 @@
+/.gitignore/1.2/Thu Nov 11 14:03:21 2021//TOPENBSD_7_3
+/Makefile/1.53/Sat May  1 16:11:10 2021//TOPENBSD_7_3
+D/arch////
+D/conf////
+D/crypto////
+D/ddb////
+D/dev////
+D/isofs////
+D/kern////
+D/lib////
+D/miscfs////
+D/msdosfs////
+D/net////
+D/net80211////
+D/netinet////
+D/netinet6////
+D/netmpls////
+D/nfs////
+D/ntfs////
+D/scsi////
+D/stand////
+D/sys////
+D/tmpfs////
+D/ufs////
+D/uvm////

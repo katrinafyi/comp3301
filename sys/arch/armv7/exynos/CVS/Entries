@@ -1,0 +1,18 @@
+/crosec.c/1.5/Sun Oct 24 17:52:27 2021//TOPENBSD_7_3
+/crosec_kbd.c/1.5/Mon Jan 23 09:36:39 2023//TOPENBSD_7_3
+/crosecvar.h/1.2/Sun Jul 19 01:13:27 2015//TOPENBSD_7_3
+/ec_commands.h/1.3/Thu Mar 11 11:16:56 2021//TOPENBSD_7_3
+/exclock.c/1.10/Sun Oct 24 17:52:27 2021//TOPENBSD_7_3
+/exclockvar.h/1.1/Mon Jan 26 02:48:24 2015//TOPENBSD_7_3
+/exdisplay.c/1.7/Sun Oct 24 17:52:27 2021//TOPENBSD_7_3
+/exdisplayvar.h/1.1/Mon Jan 26 02:48:24 2015//TOPENBSD_7_3
+/exdog.c/1.8/Sun Oct 24 17:52:27 2021//TOPENBSD_7_3
+/exdwusb.c/1.5/Sun Oct 24 17:52:27 2021//TOPENBSD_7_3
+/exehci.c/1.11/Sun Oct 24 17:52:27 2021//TOPENBSD_7_3
+/exgpio.c/1.8/Sun Oct 24 17:52:27 2021//TOPENBSD_7_3
+/exiic.c/1.9/Sun Oct 24 17:52:27 2021//TOPENBSD_7_3
+/exmct.c/1.6/Sun Oct 24 17:52:27 2021//TOPENBSD_7_3
+/expower.c/1.10/Sun Oct 24 17:52:27 2021//TOPENBSD_7_3
+/files.exynos/1.14/Sun Feb 14 10:57:40 2021//TOPENBSD_7_3
+/tps65090.c/1.6/Sun Oct 24 17:52:27 2021//TOPENBSD_7_3
+D

@@ -1,0 +1,13 @@
+/autoconf.c/1.17/Fri Sep  2 20:06:56 2022//TOPENBSD_7_3
+/bus_dma.c/1.17/Fri Dec 20 13:34:41 2019//TOPENBSD_7_3
+/cn3xxx.dts/1.4/Sun Sep 15 06:48:29 2019//TOPENBSD_7_3
+/cn3xxx_dts.S/1.4/Sun Sep 15 06:48:29 2019//TOPENBSD_7_3
+/conf.c/1.29/Sat Oct 15 10:12:13 2022//TOPENBSD_7_3
+/disksubr.c/1.10/Tue Feb 28 10:49:37 2017//TOPENBSD_7_3
+/genassym.cf/1.1/Mon Sep 20 06:32:30 2010//TOPENBSD_7_3
+/locore.S/1.22/Thu Feb 11 14:44:14 2021//TOPENBSD_7_3
+/locore0.S/1.2/Thu Jun  8 12:11:46 2017//TOPENBSD_7_3
+/machdep.c/1.136/Sat Feb  4 19:19:36 2023//TOPENBSD_7_3
+/openprom.c/1.3/Mon Jul  6 15:18:03 2020//TOPENBSD_7_3
+/pciide_machdep.c/1.1/Thu Oct 28 22:52:10 2010//TOPENBSD_7_3
+D

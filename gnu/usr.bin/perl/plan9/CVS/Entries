@@ -1,0 +1,18 @@
+/9front.patch/1.1.1.1/Wed Feb 15 01:32:51 2023/-ko/TOPENBSD_7_3
+/aperl/1.2/Wed Feb 15 01:36:35 2023/-ko/TOPENBSD_7_3
+/buildinfo/1.3/Wed Feb 15 01:36:35 2023/-ko/TOPENBSD_7_3
+/config.plan9/1.27/Wed Feb 15 01:36:35 2023/-ko/TOPENBSD_7_3
+/config_h.sample/1.13/Wed Feb 15 01:36:35 2023/-ko/TOPENBSD_7_3
+/config_sh.sample/1.15/Wed Feb 15 01:36:35 2023/-ko/TOPENBSD_7_3
+/exclude/1.2/Wed Feb 15 01:36:35 2023/-ko/TOPENBSD_7_3
+/fndvers/1.2/Wed Feb 15 01:36:35 2023/-ko/TOPENBSD_7_3
+/genconfig.pl/1.6/Wed Feb 15 01:36:35 2023/-ko/TOPENBSD_7_3
+/math.h/1.1.1.1/Wed Feb 15 01:32:51 2023/-ko/TOPENBSD_7_3
+/mkfile/1.11/Wed Feb 15 01:36:35 2023/-ko/TOPENBSD_7_3
+/myconfig.plan9/1.3/Mon Nov 17 20:57:07 2014/-ko/TOPENBSD_7_3
+/plan9.c/1.2/Wed Feb 15 01:36:35 2023/-ko/TOPENBSD_7_3
+/plan9ish.h/1.9/Wed Feb 15 01:36:35 2023/-ko/TOPENBSD_7_3
+/setup.rc/1.2/Wed Feb 15 01:36:35 2023/-ko/TOPENBSD_7_3
+/uninstall.rc/1.1.1.1/Wed Feb 15 01:32:51 2023/-ko/TOPENBSD_7_3
+/versnum/1.3/Wed Feb 15 01:36:35 2023/-ko/TOPENBSD_7_3
+D/arpa////

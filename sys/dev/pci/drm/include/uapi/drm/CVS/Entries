@@ -1,0 +1,8 @@
+/amdgpu_drm.h/1.5/Sun Jan  1 01:34:59 2023//TOPENBSD_7_3
+/drm.h/1.4/Sun Jan  1 01:34:59 2023//TOPENBSD_7_3
+/drm_fourcc.h/1.6/Sun Jan  1 01:34:59 2023//TOPENBSD_7_3
+/drm_mode.h/1.5/Sun Jan  1 01:34:59 2023//TOPENBSD_7_3
+/drm_sarea.h/1.1/Fri Jan 14 06:53:14 2022//TOPENBSD_7_3
+/i915_drm.h/1.6/Sun Jan  1 01:34:59 2023//TOPENBSD_7_3
+/radeon_drm.h/1.2/Mon Jun  8 04:48:15 2020//TOPENBSD_7_3
+D

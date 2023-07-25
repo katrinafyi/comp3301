@@ -1,0 +1,4 @@
+/fenv.c/1.5/Tue Dec 27 17:10:07 2022//TOPENBSD_7_3
+/s_copysign.S/1.5/Thu Mar 28 18:09:38 2013//TOPENBSD_7_3
+/s_copysignf.S/1.2/Thu Jun 26 05:42:05 2008//TOPENBSD_7_3
+D

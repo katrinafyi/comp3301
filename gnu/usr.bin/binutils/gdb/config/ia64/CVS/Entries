@@ -1,0 +1,11 @@
+/aix.mh/1.1.1.2/Mon Dec 27 13:13:38 2004//TOPENBSD_7_3
+/aix.mt/1.1.1.2/Mon Dec 27 13:13:38 2004//TOPENBSD_7_3
+/ia64.mt/1.1.1.2/Mon Dec 27 13:13:38 2004//TOPENBSD_7_3
+/linux.mh/1.1.1.2/Mon Dec 27 13:13:38 2004//TOPENBSD_7_3
+/linux.mt/1.1.1.2/Mon Dec 27 13:13:38 2004//TOPENBSD_7_3
+/nm-aix.h/1.1.1.1/Fri May 21 19:15:28 2004//TOPENBSD_7_3
+/nm-linux.h/1.1.1.2/Mon Dec 27 13:13:39 2004//TOPENBSD_7_3
+/tm-aix.h/1.1.1.2/Mon Dec 27 13:13:39 2004//TOPENBSD_7_3
+/tm-ia64.h/1.1.1.2/Mon Dec 27 13:13:38 2004//TOPENBSD_7_3
+/tm-linux.h/1.1.1.2/Mon Dec 27 13:13:38 2004//TOPENBSD_7_3
+D

@@ -1,0 +1,11 @@
+/Makefile/1.5/Mon Oct 14 16:58:05 2013//TOPENBSD_7_3
+/README/1.1/Fri Aug 22 15:18:55 2008//TOPENBSD_7_3
+/crunched_main.c/1.7/Thu Jul 27 15:12:30 2017//TOPENBSD_7_3
+/crunchgen.8/1.10/Sun Jun 11 16:58:49 2017//TOPENBSD_7_3
+/crunchgen.c/1.25/Mon Nov 15 15:14:24 2021//TOPENBSD_7_3
+/crunchide.c/1.12/Sun Oct 29 08:45:53 2017//TOPENBSD_7_3
+/elf_hide.c/1.11/Sun Oct 29 08:45:53 2017//TOPENBSD_7_3
+/mangle.c/1.2/Tue Dec  8 21:10:24 2009//TOPENBSD_7_3
+/mangle.h/1.1/Fri Dec  4 04:59:48 2009//TOPENBSD_7_3
+/mkskel.sh/1.1/Fri Aug 22 15:18:55 2008//TOPENBSD_7_3
+D

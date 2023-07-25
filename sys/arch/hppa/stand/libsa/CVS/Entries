@@ -1,0 +1,16 @@
+/Makefile/1.23/Thu Mar 12 19:19:37 2020//TOPENBSD_7_3
+/cmd_hppa.c/1.12/Mon Dec  6 22:51:45 2010//TOPENBSD_7_3
+/ct.c/1.10/Wed Mar  8 04:43:07 2023//TOPENBSD_7_3
+/dev_hppa.c/1.17/Sun Jul 13 09:26:08 2014//TOPENBSD_7_3
+/dev_hppa.h/1.9/Sun Mar 13 00:13:52 2011//TOPENBSD_7_3
+/dk.c/1.15/Thu Oct  1 16:08:20 2015//TOPENBSD_7_3
+/elf32.c/1.1/Wed Dec 26 18:52:59 2007//TOPENBSD_7_3
+/elf64.c/1.1/Wed Dec 26 18:52:59 2007//TOPENBSD_7_3
+/itecons.c/1.12/Thu Jul 17 12:37:46 2014//TOPENBSD_7_3
+/lf.c/1.10/Sat Jul 12 21:03:38 2014//TOPENBSD_7_3
+/libsa.h/1.17/Thu Feb 23 19:48:22 2023//TOPENBSD_7_3
+/lif.c/1.10/Mon Nov 22 18:41:41 2004//TOPENBSD_7_3
+/machdep.c/1.9/Wed Apr  7 18:24:20 2004//TOPENBSD_7_3
+/pdc.c/1.24/Fri Jan  6 19:05:46 2023//TOPENBSD_7_3
+/time.c/1.5/Wed Apr  7 18:24:20 2004//TOPENBSD_7_3
+D

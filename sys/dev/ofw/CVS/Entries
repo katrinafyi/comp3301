@@ -1,0 +1,20 @@
+/fdt.c/1.33/Mon Sep 19 16:12:19 2022//TOPENBSD_7_3
+/fdt.h/1.6/Sat Jul 18 09:44:59 2020//TOPENBSD_7_3
+/files.ofw/1.7/Tue Jul  2 20:12:11 2019//TOPENBSD_7_3
+/ofw_clock.c/1.11/Sun Aug  5 21:05:17 2018//TOPENBSD_7_3
+/ofw_clock.h/1.7/Fri Feb  4 22:24:09 2022//TOPENBSD_7_3
+/ofw_gpio.c/1.3/Mon Aug 26 09:22:27 2019//TOPENBSD_7_3
+/ofw_gpio.h/1.5/Fri Dec 18 22:14:13 2020//TOPENBSD_7_3
+/ofw_misc.c/1.38/Sat Dec 17 11:54:32 2022//TOPENBSD_7_3
+/ofw_misc.h/1.27/Mon Dec 12 19:18:25 2022//TOPENBSD_7_3
+/ofw_pci.h/1.4/Thu Jun 26 05:42:17 2008//TOPENBSD_7_3
+/ofw_pinctrl.c/1.3/Sat Jun  6 16:59:43 2020//TOPENBSD_7_3
+/ofw_pinctrl.h/1.2/Sun Aug 21 14:41:51 2016//TOPENBSD_7_3
+/ofw_power.c/1.2/Fri Nov 26 11:44:01 2021//TOPENBSD_7_3
+/ofw_power.h/1.2/Fri Nov 26 11:44:01 2021//TOPENBSD_7_3
+/ofw_regulator.c/1.16/Mon Feb 14 12:54:43 2022//TOPENBSD_7_3
+/ofw_regulator.h/1.7/Wed Feb 20 07:36:37 2019//TOPENBSD_7_3
+/ofw_thermal.c/1.7/Thu Dec 31 11:11:22 2020//TOPENBSD_7_3
+/ofw_thermal.h/1.2/Thu Jan 23 23:10:04 2020//TOPENBSD_7_3
+/openfirm.h/1.18/Thu May  6 19:45:16 2021//TOPENBSD_7_3
+D

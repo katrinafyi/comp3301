@@ -1,0 +1,21 @@
+/AArch64.def/1.1.1.2/Wed Apr 28 12:27:30 2021/-ko/TOPENBSD_7_3
+/AMDGPU.def/1.1.1.2/Fri Dec 17 12:23:22 2021/-ko/TOPENBSD_7_3
+/ARC.def/1.1.1.1/Mon Aug  3 14:30:23 2020/-ko/TOPENBSD_7_3
+/ARM.def/1.1.1.1/Mon Aug  3 14:30:23 2020/-ko/TOPENBSD_7_3
+/AVR.def/1.1.1.1/Mon Aug  3 14:30:23 2020/-ko/TOPENBSD_7_3
+/BPF.def/1.1.1.2/Fri Dec 17 12:23:22 2021/-ko/TOPENBSD_7_3
+/CSKY.def/1.1.1.1/Fri Dec 17 12:23:22 2021/-ko/TOPENBSD_7_3
+/Hexagon.def/1.1.1.1/Mon Aug  3 14:30:23 2020/-ko/TOPENBSD_7_3
+/Lanai.def/1.1.1.1/Mon Aug  3 14:30:23 2020/-ko/TOPENBSD_7_3
+/M68k.def/1.1.1.1/Fri Dec 17 12:23:22 2021/-ko/TOPENBSD_7_3
+/MSP430.def/1.1.1.1/Mon Aug  3 14:30:23 2020/-ko/TOPENBSD_7_3
+/Mips.def/1.1.1.1/Mon Aug  3 14:30:23 2020/-ko/TOPENBSD_7_3
+/PowerPC.def/1.1.1.1/Mon Aug  3 14:30:23 2020/-ko/TOPENBSD_7_3
+/PowerPC64.def/1.1.1.3/Fri Dec 17 12:23:22 2021/-ko/TOPENBSD_7_3
+/RISCV.def/1.1.1.2/Wed Apr 28 12:27:30 2021/-ko/TOPENBSD_7_3
+/Sparc.def/1.1.1.1/Mon Aug  3 14:30:23 2020/-ko/TOPENBSD_7_3
+/SystemZ.def/1.1.1.1/Mon Aug  3 14:30:23 2020/-ko/TOPENBSD_7_3
+/VE.def/1.1.1.1/Wed Apr 28 12:27:30 2021/-ko/TOPENBSD_7_3
+/i386.def/1.1.1.1/Mon Aug  3 14:30:23 2020/-ko/TOPENBSD_7_3
+/x86_64.def/1.1.1.1/Mon Aug  3 14:30:23 2020/-ko/TOPENBSD_7_3
+D

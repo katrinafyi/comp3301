@@ -1,0 +1,7 @@
+/amdgpu_dpm.c/1.4/Sun Jan  1 01:34:52 2023//TOPENBSD_7_3
+/amdgpu_dpm_internal.c/1.1/Sun Jan  1 01:34:52 2023//TOPENBSD_7_3
+/amdgpu_pm.c/1.8/Thu Feb 23 02:21:15 2023//TOPENBSD_7_3
+D/inc////
+D/legacy-dpm////
+D/powerplay////
+D/swsmu////

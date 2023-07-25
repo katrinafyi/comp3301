@@ -1,0 +1,31 @@
+/Makefile/1.13/Tue Dec 15 00:50:01 2020//TOPENBSD_7_3
+/cmd1.c/1.29/Wed Apr  6 11:36:26 2011//TOPENBSD_7_3
+/cmd2.c/1.22/Fri Oct 16 17:56:07 2015//TOPENBSD_7_3
+/cmd3.c/1.30/Wed Mar  8 04:43:11 2023//TOPENBSD_7_3
+/cmdtab.c/1.13/Tue Oct 27 23:59:40 2009//TOPENBSD_7_3
+/collect.c/1.34/Fri Jan 17 18:42:30 2014//TOPENBSD_7_3
+/def.h/1.17/Fri Jan 28 06:18:41 2022//TOPENBSD_7_3
+/edit.c/1.21/Fri Jun 28 13:35:01 2019//TOPENBSD_7_3
+/extern.h/1.29/Sun Sep 16 02:38:57 2018//TOPENBSD_7_3
+/fio.c/1.39/Mon Dec 26 19:16:01 2022//TOPENBSD_7_3
+/glob.h/1.10/Tue Jan 26 18:21:47 2021//TOPENBSD_7_3
+/head.c/1.13/Wed Mar  8 04:43:11 2023//TOPENBSD_7_3
+/lex.c/1.43/Wed Mar  8 04:43:11 2023//TOPENBSD_7_3
+/list.c/1.20/Fri Oct 16 17:56:07 2015//TOPENBSD_7_3
+/mail.1/1.83/Thu Mar 31 17:27:25 2022//TOPENBSD_7_3
+/main.c/1.35/Tue Jan 26 18:21:47 2021//TOPENBSD_7_3
+/names.c/1.25/Fri Jun 28 13:35:02 2019//TOPENBSD_7_3
+/pathnames.h/1.7/Tue Jun  3 02:56:11 2003//TOPENBSD_7_3
+/popen.c/1.40/Wed Mar  8 04:43:11 2023//TOPENBSD_7_3
+/quit.c/1.23/Tue Jul 19 06:43:27 2016//TOPENBSD_7_3
+/rcv.h/1.3/Tue Jun  3 02:56:11 2003//TOPENBSD_7_3
+/send.c/1.26/Wed Mar  8 04:43:11 2023//TOPENBSD_7_3
+/strings.c/1.10/Fri Oct 16 17:56:07 2015//TOPENBSD_7_3
+/temp.c/1.18/Sun Sep 16 02:38:57 2018//TOPENBSD_7_3
+/tty.c/1.23/Wed Mar  8 04:43:11 2023//TOPENBSD_7_3
+/util.c/1.2/Mon Dec 26 19:16:01 2022//TOPENBSD_7_3
+/v7.local.c/1.18/Sun Sep 16 02:38:57 2018//TOPENBSD_7_3
+/vars.c/1.13/Fri Oct 16 17:56:07 2015//TOPENBSD_7_3
+/version.c/1.7/Tue Oct 27 23:59:40 2009//TOPENBSD_7_3
+D/USD.doc////
+D/misc////

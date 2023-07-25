@@ -1,0 +1,11 @@
+/Makefile/1.13/Wed Mar 30 06:38:43 2016//TOPENBSD_7_3
+/dump.8/1.56/Thu Oct 13 21:37:05 2022//TOPENBSD_7_3
+/dump.h/1.25/Thu Jan 21 00:16:36 2021//TOPENBSD_7_3
+/dumprmt.c/1.32/Wed Mar  8 04:43:06 2023//TOPENBSD_7_3
+/itime.c/1.25/Thu Jan 21 00:16:36 2021//TOPENBSD_7_3
+/main.c/1.63/Thu Jun  2 15:35:55 2022//TOPENBSD_7_3
+/optr.c/1.41/Wed Mar  8 04:43:06 2023//TOPENBSD_7_3
+/pathnames.h/1.7/Thu Jan 21 00:16:36 2021//TOPENBSD_7_3
+/tape.c/1.48/Wed Mar  8 04:43:06 2023//TOPENBSD_7_3
+/traverse.c/1.40/Wed Feb  8 08:25:44 2023//TOPENBSD_7_3
+D

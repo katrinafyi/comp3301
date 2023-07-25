@@ -1,0 +1,14 @@
+/Makefile/1.3/Fri Jan 27 16:39:22 2023//TOPENBSD_7_3
+/cephes.c/1.1/Mon May 30 20:23:35 2011//TOPENBSD_7_3
+/cephes.h/1.1/Mon May 30 20:23:35 2011//TOPENBSD_7_3
+/const.c/1.1/Mon May 30 20:23:35 2011//TOPENBSD_7_3
+/constll.c/1.1/Thu Jun  2 21:47:40 2011//TOPENBSD_7_3
+/mconf.h/1.1/Mon May 30 20:23:35 2011//TOPENBSD_7_3
+/monot.c/1.2/Sat May 29 10:35:56 2021//TOPENBSD_7_3
+/monotl.c/1.2/Fri Jul  8 16:49:05 2011//TOPENBSD_7_3
+/monotll.c/1.2/Fri Jul  8 16:49:05 2011//TOPENBSD_7_3
+/polevll.c/1.2/Thu Jun  2 21:47:40 2011//TOPENBSD_7_3
+/testvect.c/1.2/Fri Aug  2 20:23:28 2013//TOPENBSD_7_3
+/testvectl.c/1.5/Mon Aug  5 09:29:51 2013//TOPENBSD_7_3
+/testvectll.c/1.5/Sat Apr 23 16:04:05 2022//TOPENBSD_7_3
+D

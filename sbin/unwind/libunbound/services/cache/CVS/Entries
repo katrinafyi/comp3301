@@ -1,0 +1,8 @@
+/Makefile.inc/1.1/Wed Jan 23 13:05:27 2019//TOPENBSD_7_3
+/dns.c/1.9/Fri Sep 23 19:37:23 2022//TOPENBSD_7_3
+/dns.h/1.4/Tue Aug 30 05:46:51 2022//TOPENBSD_7_3
+/infra.c/1.8/Sat Oct 22 16:37:57 2022//TOPENBSD_7_3
+/infra.h/1.5/Sat Oct 22 16:37:57 2022//TOPENBSD_7_3
+/rrset.c/1.2/Tue Mar 16 18:38:05 2021//TOPENBSD_7_3
+/rrset.h/1.2/Tue Mar  1 18:34:22 2022//TOPENBSD_7_3
+D

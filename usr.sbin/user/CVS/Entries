@@ -1,0 +1,16 @@
+/Makefile/1.6/Wed Mar 30 06:38:47 2016//TOPENBSD_7_3
+/group.8/1.18/Sun Feb  6 00:29:03 2022//TOPENBSD_7_3
+/groupadd.8/1.17/Tue Nov 29 03:59:31 2016//TOPENBSD_7_3
+/groupdel.8/1.17/Tue Nov 29 03:59:31 2016//TOPENBSD_7_3
+/groupinfo.8/1.15/Tue Nov 29 03:59:31 2016//TOPENBSD_7_3
+/groupmod.8/1.19/Tue Nov 29 03:59:31 2016//TOPENBSD_7_3
+/main.c/1.12/Wed Dec 28 21:30:19 2022//TOPENBSD_7_3
+/user.8/1.24/Sun Feb  6 00:29:03 2022//TOPENBSD_7_3
+/user.c/1.128/Thu Oct 17 21:54:29 2019//TOPENBSD_7_3
+/useradd.8/1.35/Tue Nov 29 03:59:31 2016//TOPENBSD_7_3
+/userdel.8/1.18/Tue Nov 29 03:59:31 2016//TOPENBSD_7_3
+/userinfo.8/1.15/Tue Nov 29 03:59:31 2016//TOPENBSD_7_3
+/usermgmt.conf.5/1.14/Wed Nov 30 20:26:37 2016//TOPENBSD_7_3
+/usermgmt.h/1.6/Tue Nov 29 03:59:31 2016//TOPENBSD_7_3
+/usermod.8/1.35/Wed Nov 30 20:26:37 2016//TOPENBSD_7_3
+D

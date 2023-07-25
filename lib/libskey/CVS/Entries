@@ -1,0 +1,9 @@
+/Makefile/1.12/Wed Mar 30 06:38:43 2016//TOPENBSD_7_3
+/put.c/1.14/Fri Nov 29 19:00:51 2013//TOPENBSD_7_3
+/shlib_version/1.15/Tue Aug 13 05:52:16 2013//TOPENBSD_7_3
+/skey.3/1.16/Fri Jan 25 00:19:26 2019//TOPENBSD_7_3
+/skey.5/1.9/Sat Oct 24 10:33:44 2020//TOPENBSD_7_3
+/skey.h/1.22/Fri Jan 25 00:19:26 2019//TOPENBSD_7_3
+/skeylogin.c/1.64/Wed Mar 15 17:01:35 2023//TOPENBSD_7_3
+/skeysubr.c/1.36/Wed Mar  8 04:43:05 2023//TOPENBSD_7_3
+D

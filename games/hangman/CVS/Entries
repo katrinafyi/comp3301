@@ -1,0 +1,16 @@
+/Makefile/1.7/Wed Jul 16 20:00:14 2014//TOPENBSD_7_3
+/endgame.c/1.9/Mon Jan  4 17:33:24 2016//TOPENBSD_7_3
+/extern.c/1.9/Thu Dec 31 15:20:36 2015//TOPENBSD_7_3
+/getguess.c/1.15/Mon Jan  4 17:33:24 2016//TOPENBSD_7_3
+/getword.c/1.11/Sun Sep 11 09:32:47 2016//TOPENBSD_7_3
+/hangman.6/1.17/Sat Feb  7 01:37:30 2015//TOPENBSD_7_3
+/hangman.h/1.11/Thu Dec 31 15:20:36 2015//TOPENBSD_7_3
+/ksyms.c/1.13/Fri Dec 24 23:01:56 2021//TOPENBSD_7_3
+/main.c/1.20/Sat Oct 23 11:22:49 2021//TOPENBSD_7_3
+/pathnames.h/1.3/Tue Jun  3 03:01:40 2003//TOPENBSD_7_3
+/playgame.c/1.11/Thu Dec 31 15:20:36 2015//TOPENBSD_7_3
+/prdata.c/1.8/Thu Dec 31 15:20:36 2015//TOPENBSD_7_3
+/prman.c/1.7/Thu Dec 31 15:20:36 2015//TOPENBSD_7_3
+/prword.c/1.6/Thu Dec 31 15:20:36 2015//TOPENBSD_7_3
+/setup.c/1.13/Thu Dec 31 15:20:36 2015//TOPENBSD_7_3
+D

@@ -1,0 +1,19 @@
+/env-args-last-is-assign.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env-args-last-is-u-arg.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env-args-last-is-u.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env-args-nested-none.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env-args-none.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env-calls-cd.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env-calls-colon.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env-calls-echo.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env-calls-env.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env-calls-export.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env-calls-mkdir.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env-calls-not-builtin.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env-calls-rm.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env-u.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/env.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/lit.cfg/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/mixed.txt/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+/print_environment.py/1.1.1.1/Mon Aug  3 14:30:27 2020/-ko/TOPENBSD_7_3
+D

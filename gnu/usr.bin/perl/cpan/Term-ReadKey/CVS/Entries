@@ -1,0 +1,14 @@
+/Changes/1.2/Fri Mar  6 01:16:16 2020/-ko/TOPENBSD_7_3
+/Configure.pm/1.4/Fri Mar  6 01:16:16 2020/-ko/TOPENBSD_7_3
+/MANIFEST/1.2/Fri Mar  6 01:16:16 2020/-ko/TOPENBSD_7_3
+/MANIFEST.SKIP/1.2/Fri Mar  6 01:16:16 2020/-ko/TOPENBSD_7_3
+/META.json/1.2/Fri Mar  6 01:16:16 2020/-ko/TOPENBSD_7_3
+/Makefile.PL/1.4/Fri Mar  6 01:16:16 2020/-ko/TOPENBSD_7_3
+/README/1.2/Fri Mar  6 01:16:16 2020/-ko/TOPENBSD_7_3
+/ReadKey.pm.PL/1.1/Fri Mar  6 01:16:17 2020/-ko/TOPENBSD_7_3
+/ReadKey.xs/1.3/Fri Mar  6 01:16:17 2020/-ko/TOPENBSD_7_3
+/SIGNATURE/1.1/Fri Mar  6 01:16:17 2020/-ko/TOPENBSD_7_3
+/genchars.pl/1.3/Fri Mar  6 01:16:17 2020/-ko/TOPENBSD_7_3
+/ppport.h/1.2/Thu Feb 17 09:24:56 2022/-ko/TOPENBSD_7_3
+D/example////
+D/t////

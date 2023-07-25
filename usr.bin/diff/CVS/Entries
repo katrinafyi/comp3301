@@ -1,0 +1,9 @@
+/Makefile/1.3/Tue May 29 18:24:56 2007//TOPENBSD_7_3
+/diff.1/1.51/Thu Jan  5 00:00:44 2023//TOPENBSD_7_3
+/diff.c/1.68/Thu Jan  5 00:00:44 2023//TOPENBSD_7_3
+/diff.h/1.34/Sun Nov  1 18:16:08 2020//TOPENBSD_7_3
+/diffdir.c/1.47/Fri Jan 25 00:19:26 2019//TOPENBSD_7_3
+/diffreg.c/1.95/Sun Oct 24 21:24:16 2021//TOPENBSD_7_3
+/xmalloc.c/1.10/Fri Jun 28 05:44:09 2019//TOPENBSD_7_3
+/xmalloc.h/1.4/Thu Nov 12 16:30:30 2015//TOPENBSD_7_3
+D

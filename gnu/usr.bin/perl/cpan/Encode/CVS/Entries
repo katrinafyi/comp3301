@@ -1,0 +1,18 @@
+/Encode.pm/1.12/Wed Feb 15 01:36:16 2023/-ko/TOPENBSD_7_3
+/Encode.xs/1.10/Wed Feb 15 01:36:16 2023/-ko/TOPENBSD_7_3
+/Makefile.PL/1.7/Wed Feb 15 01:36:16 2023/-ko/TOPENBSD_7_3
+/encengine.c/1.4/Mon Dec 30 02:13:43 2019/-ko/TOPENBSD_7_3
+/encoding.pm/1.8/Mon Mar  1 23:19:45 2021/-ko/TOPENBSD_7_3
+D/Byte////
+D/CN////
+D/EBCDIC////
+D/Encode////
+D/JP////
+D/KR////
+D/Symbol////
+D/TW////
+D/Unicode////
+D/bin////
+D/lib////
+D/t////
+D/ucm////

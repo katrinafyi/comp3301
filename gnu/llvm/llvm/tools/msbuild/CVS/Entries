@@ -1,0 +1,12 @@
+/.gitignore/1.1.1.1/Fri Dec 17 12:23:43 2021/-ko/TOPENBSD_7_3
+/LLVM.Cpp.Common.props/1.1.1.1/Mon Aug  3 14:30:26 2020/-ko/TOPENBSD_7_3
+/LLVM.Cpp.Common.targets/1.1.1.1/Mon Aug  3 14:30:26 2020/-ko/TOPENBSD_7_3
+/install.bat/1.1.1.1/Mon Aug  3 14:30:26 2020/-ko/TOPENBSD_7_3
+/license.txt/1.1.1.1/Mon Aug  3 14:30:26 2020/-ko/TOPENBSD_7_3
+/llvm-general.xml/1.1.1.1/Mon Aug  3 14:30:26 2020/-ko/TOPENBSD_7_3
+/llvm.csproj/1.1.1.1/Mon Aug  3 14:30:26 2020/-ko/TOPENBSD_7_3
+/llvm.sln/1.1.1.1/Mon Aug  3 14:30:26 2020/-ko/TOPENBSD_7_3
+/source.extension.vsixmanifest/1.1.1.1/Mon Aug  3 14:30:26 2020/-ko/TOPENBSD_7_3
+/uninstall.bat/1.1.1.1/Mon Aug  3 14:30:26 2020/-ko/TOPENBSD_7_3
+D/Platformx64////
+D/Platformx86////

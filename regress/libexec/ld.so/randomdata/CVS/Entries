@@ -1,0 +1,8 @@
+/Makefile/1.5/Wed Aug 22 17:08:12 2012//TOPENBSD_7_3
+/Makefile.inc/1.2/Sun Jun  6 22:53:06 2021//TOPENBSD_7_3
+D/ld.so-cookie////
+D/libaa////
+D/prog////
+D/prog-dynamic////
+D/prog-pie////
+D/prog-static////

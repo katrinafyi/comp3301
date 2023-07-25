@@ -1,0 +1,21 @@
+/Makefile/1.1/Thu Jun  1 21:15:40 2006//TOPENBSD_7_3
+/devlist2h.awk/1.4/Wed Jan  4 14:42:46 2023//TOPENBSD_7_3
+/files.sdmmc/1.6/Tue Mar 20 04:18:40 2018//TOPENBSD_7_3
+/if_bwfm_sdio.c/1.44/Wed Apr  6 18:59:30 2022//TOPENBSD_7_3
+/if_bwfm_sdio.h/1.3/Fri Mar  6 09:28:40 2020//TOPENBSD_7_3
+/sdhc.c/1.73/Wed Jan 19 10:51:04 2022//TOPENBSD_7_3
+/sdhcreg.h/1.9/Thu Sep  6 10:15:17 2018//TOPENBSD_7_3
+/sdhcvar.h/1.16/Tue Jan 18 11:36:21 2022//TOPENBSD_7_3
+/sdmmc.c/1.60/Sat Sep  3 15:29:43 2022//TOPENBSD_7_3
+/sdmmc_cis.c/1.8/Wed Apr 29 09:44:49 2020//TOPENBSD_7_3
+/sdmmc_io.c/1.42/Sat Dec 26 03:45:57 2020//TOPENBSD_7_3
+/sdmmc_ioreg.h/1.11/Thu Aug  9 13:50:15 2018//TOPENBSD_7_3
+/sdmmc_mem.c/1.37/Mon Jan 10 18:23:39 2022//TOPENBSD_7_3
+/sdmmc_scsi.c/1.61/Sat Apr 16 19:19:59 2022//TOPENBSD_7_3
+/sdmmc_scsi.h/1.3/Tue Jul 18 04:10:35 2006//TOPENBSD_7_3
+/sdmmcchip.h/1.14/Fri Aug 14 14:49:04 2020//TOPENBSD_7_3
+/sdmmcdevs/1.9/Fri Mar 18 11:09:39 2022//TOPENBSD_7_3
+/sdmmcdevs.h/1.9/Fri Mar 18 11:09:55 2022//TOPENBSD_7_3
+/sdmmcreg.h/1.13/Mon Aug 24 15:06:10 2020//TOPENBSD_7_3
+/sdmmcvar.h/1.34/Fri Aug 14 14:49:04 2020//TOPENBSD_7_3
+D

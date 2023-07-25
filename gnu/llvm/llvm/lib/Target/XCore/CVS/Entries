@@ -1,0 +1,37 @@
+/CMakeLists.txt/1.1.1.2/Fri Dec 17 12:23:39 2021/-ko/TOPENBSD_7_3
+/README.txt/1.1.1.1/Mon Aug  3 14:30:25 2020/-ko/TOPENBSD_7_3
+/XCore.h/1.1.1.2/Wed Apr 28 12:28:17 2021/-ko/TOPENBSD_7_3
+/XCore.td/1.1.1.1/Mon Aug  3 14:30:25 2020/-ko/TOPENBSD_7_3
+/XCoreAsmPrinter.cpp/1.1.1.2/Wed Apr 28 12:28:17 2021/-ko/TOPENBSD_7_3
+/XCoreCallingConv.td/1.1.1.1/Mon Aug  3 14:30:25 2020/-ko/TOPENBSD_7_3
+/XCoreFrameLowering.cpp/1.1.1.2/Wed Apr 28 12:28:17 2021/-ko/TOPENBSD_7_3
+/XCoreFrameLowering.h/1.1.1.2/Wed Apr 28 12:28:17 2021/-ko/TOPENBSD_7_3
+/XCoreFrameToArgsOffsetElim.cpp/1.1.1.1/Mon Aug  3 14:30:25 2020/-ko/TOPENBSD_7_3
+/XCoreISelDAGToDAG.cpp/1.1.1.2/Wed Apr 28 12:28:18 2021/-ko/TOPENBSD_7_3
+/XCoreISelLowering.cpp/1.1.1.3/Fri Dec 17 12:23:39 2021/-ko/TOPENBSD_7_3
+/XCoreISelLowering.h/1.1.1.2/Wed Apr 28 12:28:18 2021/-ko/TOPENBSD_7_3
+/XCoreInstrFormats.td/1.1.1.1/Mon Aug  3 14:30:25 2020/-ko/TOPENBSD_7_3
+/XCoreInstrInfo.cpp/1.1.1.2/Wed Apr 28 12:28:18 2021/-ko/TOPENBSD_7_3
+/XCoreInstrInfo.h/1.1.1.2/Wed Apr 28 12:28:18 2021/-ko/TOPENBSD_7_3
+/XCoreInstrInfo.td/1.1.1.2/Wed Apr 28 12:28:18 2021/-ko/TOPENBSD_7_3
+/XCoreLowerThreadLocal.cpp/1.1.1.2/Fri Dec 17 12:23:39 2021/-ko/TOPENBSD_7_3
+/XCoreMCInstLower.cpp/1.1.1.1/Mon Aug  3 14:30:25 2020/-ko/TOPENBSD_7_3
+/XCoreMCInstLower.h/1.1.1.2/Wed Apr 28 12:28:18 2021/-ko/TOPENBSD_7_3
+/XCoreMachineFunctionInfo.cpp/1.1.1.2/Wed Apr 28 12:28:18 2021/-ko/TOPENBSD_7_3
+/XCoreMachineFunctionInfo.h/1.1.1.1/Mon Aug  3 14:30:25 2020/-ko/TOPENBSD_7_3
+/XCoreRegisterInfo.cpp/1.1.1.2/Wed Apr 28 12:28:18 2021/-ko/TOPENBSD_7_3
+/XCoreRegisterInfo.h/1.1.1.2/Wed Apr 28 12:28:18 2021/-ko/TOPENBSD_7_3
+/XCoreRegisterInfo.td/1.1.1.2/Wed Apr 28 12:28:18 2021/-ko/TOPENBSD_7_3
+/XCoreSelectionDAGInfo.cpp/1.1.1.2/Wed Apr 28 12:28:18 2021/-ko/TOPENBSD_7_3
+/XCoreSelectionDAGInfo.h/1.1.1.2/Wed Apr 28 12:28:18 2021/-ko/TOPENBSD_7_3
+/XCoreSubtarget.cpp/1.1.1.2/Fri Dec 17 12:23:39 2021/-ko/TOPENBSD_7_3
+/XCoreSubtarget.h/1.1.1.2/Fri Dec 17 12:23:39 2021/-ko/TOPENBSD_7_3
+/XCoreTargetMachine.cpp/1.1.1.3/Fri Dec 17 12:23:39 2021/-ko/TOPENBSD_7_3
+/XCoreTargetMachine.h/1.1.1.1/Mon Aug  3 14:30:25 2020/-ko/TOPENBSD_7_3
+/XCoreTargetObjectFile.cpp/1.1.1.3/Fri Dec 17 12:23:39 2021/-ko/TOPENBSD_7_3
+/XCoreTargetObjectFile.h/1.1.1.2/Wed Apr 28 12:28:18 2021/-ko/TOPENBSD_7_3
+/XCoreTargetStreamer.h/1.1.1.1/Mon Aug  3 14:30:25 2020/-ko/TOPENBSD_7_3
+/XCoreTargetTransformInfo.h/1.1.1.1/Mon Aug  3 14:30:25 2020/-ko/TOPENBSD_7_3
+D/Disassembler////
+D/MCTargetDesc////
+D/TargetInfo////

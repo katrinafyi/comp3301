@@ -1,0 +1,81 @@
+/audio.c/1.206/Fri Feb 10 14:34:16 2023//TOPENBSD_7_3
+/audio_if.h/1.42/Wed Nov  2 10:41:34 2022//TOPENBSD_7_3
+/bio.c/1.17/Wed Aug 26 22:28:57 2015//TOPENBSD_7_3
+/biovar.h/1.46/Sun Jun  7 16:51:43 2020//TOPENBSD_7_3
+/clock_subr.h/1.8/Wed Oct 12 13:39:50 2022//TOPENBSD_7_3
+/cninit.c/1.15/Sat Dec 30 20:46:59 2017//TOPENBSD_7_3
+/cons.c/1.30/Sat Jul  2 08:50:41 2022//TOPENBSD_7_3
+/cons.h/1.19/Sat Jul  2 08:50:41 2022//TOPENBSD_7_3
+/diskmap.c/1.26/Tue Aug  6 07:16:48 2019//TOPENBSD_7_3
+/firmload.c/1.16/Mon Aug 13 23:12:39 2018//TOPENBSD_7_3
+/hotplug.c/1.22/Sat Jul  2 08:50:41 2022//TOPENBSD_7_3
+/ipmi.c/1.118/Fri Apr  8 13:13:14 2022//TOPENBSD_7_3
+/ipmi.h/1.1/Fri Feb  5 06:29:01 2016//TOPENBSD_7_3
+/ipmivar.h/1.34/Sat Jan 23 12:10:08 2021//TOPENBSD_7_3
+/kcov.c/1.48/Wed Jan 19 06:46:55 2022//TOPENBSD_7_3
+/kstat.c/1.2/Mon Jan 31 05:09:17 2022//TOPENBSD_7_3
+/ksyms.c/1.34/Sat Jan  8 22:54:49 2022//TOPENBSD_7_3
+/midi.c/1.55/Sat Jul  2 08:50:41 2022//TOPENBSD_7_3
+/midi_if.h/1.10/Mon Mar 21 19:22:40 2022//TOPENBSD_7_3
+/midivar.h/1.13/Mon Mar 21 19:22:40 2022//TOPENBSD_7_3
+/mulaw.c/1.18/Thu Jun 25 06:43:46 2015//TOPENBSD_7_3
+/mulaw.h/1.16/Thu Jun 25 06:43:46 2015//TOPENBSD_7_3
+/radio.c/1.13/Wed Apr  6 18:59:27 2022//TOPENBSD_7_3
+/radio_if.h/1.4/Mon Mar 21 19:22:40 2022//TOPENBSD_7_3
+/radiovar.h/1.4/Mon Mar 21 19:22:40 2022//TOPENBSD_7_3
+/rd.c/1.14/Wed Apr  6 18:59:27 2022//TOPENBSD_7_3
+/rnd.c/1.226/Wed Mar  8 04:43:08 2023//TOPENBSD_7_3
+/rndis.h/1.3/Sun Jan  9 05:42:37 2022//TOPENBSD_7_3
+/softraid.c/1.429/Wed Dec 21 09:54:23 2022//TOPENBSD_7_3
+/softraid_concat.c/1.27/Sat Apr 25 14:37:43 2020//TOPENBSD_7_3
+/softraid_crypto.c/1.145/Sun Oct 24 14:50:42 2021//TOPENBSD_7_3
+/softraid_raid0.c/1.53/Wed Mar 25 21:29:04 2020//TOPENBSD_7_3
+/softraid_raid1.c/1.67/Sun May 16 15:12:37 2021//TOPENBSD_7_3
+/softraid_raid1c.c/1.6/Sun Oct 24 14:50:42 2021//TOPENBSD_7_3
+/softraid_raid5.c/1.32/Sun May 16 15:12:37 2021//TOPENBSD_7_3
+/softraid_raid6.c/1.72/Sun May 16 15:12:37 2021//TOPENBSD_7_3
+/softraidvar.h/1.176/Mon Dec 19 15:27:06 2022//TOPENBSD_7_3
+/spdmem.c/1.7/Sat Dec 21 12:33:03 2019//TOPENBSD_7_3
+/spdmemvar.h/1.1/Mon Mar 22 21:20:56 2010//TOPENBSD_7_3
+/video.c/1.57/Sat Jul  2 08:50:41 2022//TOPENBSD_7_3
+/video_if.h/1.19/Mon Mar 21 19:22:40 2022//TOPENBSD_7_3
+/vnd.c/1.180/Wed Mar  8 04:43:08 2023//TOPENBSD_7_3
+/vndioctl.h/1.11/Mon Nov 18 22:32:45 2019//TOPENBSD_7_3
+/vscsi.c/1.61/Sat Jul  2 08:50:41 2022//TOPENBSD_7_3
+/vscsivar.h/1.5/Tue Apr  5 15:28:49 2011//TOPENBSD_7_3
+D/acpi////
+D/adb////
+D/ata////
+D/atapiscsi////
+D/cardbus////
+D/dec////
+D/dt////
+D/efi////
+D/eisa////
+D/fdt////
+D/gpio////
+D/hid////
+D/hil////
+D/i2c////
+D/ic////
+D/isa////
+D/microcode////
+D/mii////
+D/ofw////
+D/onewire////
+D/pci////
+D/pckbc////
+D/pcmcia////
+D/puc////
+D/pv////
+D/rasops////
+D/sbus////
+D/sdmmc////
+D/spi////
+D/sun////
+D/tc////
+D/usb////
+D/videomode////
+D/wscons////
+D/wsfont////
+D/x86emu////

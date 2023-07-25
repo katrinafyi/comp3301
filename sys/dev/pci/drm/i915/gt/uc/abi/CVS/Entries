@@ -1,0 +1,8 @@
+/guc_actions_abi.h/1.2/Sun Jan  1 01:34:57 2023//TOPENBSD_7_3
+/guc_actions_slpc_abi.h/1.2/Sun Jan  1 01:34:57 2023//TOPENBSD_7_3
+/guc_communication_ctb_abi.h/1.2/Sun Jan  1 01:34:57 2023//TOPENBSD_7_3
+/guc_communication_mmio_abi.h/1.1/Fri Jan 14 06:53:13 2022//TOPENBSD_7_3
+/guc_errors_abi.h/1.2/Sun Jan  1 01:34:57 2023//TOPENBSD_7_3
+/guc_klvs_abi.h/1.1/Sun Jan  1 01:34:57 2023//TOPENBSD_7_3
+/guc_messages_abi.h/1.2/Sun Jan  1 01:34:57 2023//TOPENBSD_7_3
+D

@@ -1,0 +1,14 @@
+/Makefile/1.7/Fri Feb  6 08:28:04 2015//TOPENBSD_7_3
+/args.in/1.3/Tue Jul  4 14:53:24 2017//TOPENBSD_7_3
+/args.out_ascii/1.5/Mon Jun 28 19:59:11 2021//TOPENBSD_7_3
+/args.out_lint/1.4/Tue Jul  4 14:53:24 2017//TOPENBSD_7_3
+/dupe.in/1.2/Tue Jul  4 14:53:24 2017//TOPENBSD_7_3
+/dupe.out_ascii/1.3/Mon Jun 28 19:59:11 2021//TOPENBSD_7_3
+/dupe.out_lint/1.6/Thu Jul  6 22:58:44 2017//TOPENBSD_7_3
+/indent.in/1.5/Mon Aug 15 18:55:29 2022//TOPENBSD_7_3
+/indent.out_ascii/1.7/Mon Aug 15 18:55:29 2022//TOPENBSD_7_3
+/userdef.in/1.2/Tue Jul  4 14:53:24 2017//TOPENBSD_7_3
+/userdef.out_ascii/1.3/Mon Jun 28 19:59:11 2021//TOPENBSD_7_3
+/vert.in/1.2/Tue Jul  4 14:53:24 2017//TOPENBSD_7_3
+/vert.out_ascii/1.3/Mon Jun 28 19:59:11 2021//TOPENBSD_7_3
+D
