@@ -99,7 +99,7 @@ sys_getpriority(struct proc *curp, void *v, register_t *retval)
 		if (SCARG(uap, who) == 0)
 			pr = curp->p_p;
 		else
-			pr = prfind(SCARG(uap, who));
+			pr = prfind(curp, SCARG(uap, who));
 		if (pr == NULL)
 			break;
 		if (pr->ps_nice < low)
@@ -154,7 +154,7 @@ sys_setpriority(struct proc *curp, void *v, register_t *retval)
 		if (SCARG(uap, who) == 0)
 			pr = curp->p_p;
 		else
-			pr = prfind(SCARG(uap, who));
+			pr = prfind(curp, SCARG(uap, who));
 		if (pr == NULL)
 			break;
 		error = donice(curp, pr, SCARG(uap, prio));

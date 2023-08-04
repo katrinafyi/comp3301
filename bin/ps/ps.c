@@ -54,6 +54,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
+#include <zones.h>
 
 #include "ps.h"
 
@@ -71,6 +72,7 @@ int	needcomm, needenv, neednlist, commandonly;
 enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
 
 static char	*kludge_oldps_options(char *);
+static zoneid_t	 zone_lookup(const char *);
 static int	 pscomp(const void *, const void *);
 static void	 scanvars(void);
 static void	 forest_sort(struct pinfo *, int);
@@ -102,6 +104,9 @@ main(int argc, char *argv[])
 	int prtheader, showthreads, wflag, kflag, what, Uflag, xflg;
 	int forest;
 	char *nlistf, *memf, *swapf, *cols, errbuf[_POSIX2_LINE_MAX];
+	int Zflag = 0;
+	const char *zone = NULL;
+	zoneid_t zoneid = -1;
 
 	setlocale(LC_CTYPE, "");
 
@@ -127,7 +132,7 @@ main(int argc, char *argv[])
 	ttydev = NODEV;
 	memf = nlistf = swapf = NULL;
 	while ((ch = getopt(argc, argv,
-	    "AaCcefgHhjkLlM:mN:O:o:p:rSTt:U:uvW:wx")) != -1)
+	    "AaCcefgHhjkLlM:mN:O:o:p:rSTt:U:uvW:wxZz:")) != -1)
 		switch (ch) {
 		case 'A':
 			all = 1;
@@ -256,6 +261,12 @@ main(int argc, char *argv[])
 		case 'x':
 			xflg = 1;
 			break;
+		case 'Z':
+			Zflag = 1;
+			break;
+		case 'z':
+			zone = optarg;
+			break;
 		default:
 			usage();
 		}
@@ -305,6 +316,8 @@ main(int argc, char *argv[])
 		else
 			parsefmt(dfmt);
 	}
+	if (Zflag)
+		zonefmt();
 
 	/* XXX - should be cleaner */
 	if (!all && ttydev == NODEV && pid == -1 && !Uflag) {
@@ -343,6 +356,9 @@ main(int argc, char *argv[])
 	if (showthreads)
 		what |= KERN_PROC_SHOW_THREADS;
 
+	if (zone != NULL)
+		zoneid = zone_lookup(zone);
+
 	/*
 	 * select procs
 	 */
@@ -370,6 +386,8 @@ main(int argc, char *argv[])
 	 * for each proc, call each variable output function.
 	 */
 	for (i = lineno = 0; i < nentries; i++) {
+		if (zoneid != -1 && zoneid != pinfo[i].ki->p_zoneid)
+			continue;
 		if (xflg == 0 && ((int)pinfo[i].ki->p_tdev == NODEV ||
 		    (pinfo[i].ki->p_psflags & PS_CONTROLT ) == 0))
 			continue;
@@ -388,6 +406,25 @@ main(int argc, char *argv[])
 		}
 	}
 	exit(eval);
+}
+
+static zoneid_t
+zone_lookup(const char *zone)
+{
+	const char *errstr;
+	zoneid_t z;
+
+	z = zone_id(zone);
+	if (z == -1) {
+		if (errno != ESRCH)
+			err(1, "zone lookup");
+
+		z = strtonum(zone, 0, 1024, &errstr);
+		if (errstr != NULL)
+			errx(1, "zone lookup: %s", errstr);
+	}
+
+	return (z);
 }
 
 static void
@@ -609,8 +646,8 @@ forest_sort(struct pinfo *ki, int items)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: %s [-AacefHhjkLlmrSTuvwx] [-M core] [-N system]"
-	    " [-O fmt] [-o fmt] [-p pid]\n", __progname);
+	fprintf(stderr, "usage: %s [-AacefHhjkLlmrSTuvwxZ] [-M core]"
+	    " [-N system] [-O fmt] [-o fmt] [-p pid]\n", __progname);
 	fprintf(stderr, "%-*s[-t tty] [-U username] [-W swap]\n",
 	    (int)strlen(__progname) + 8, "");
 	exit(1);

@@ -568,3 +568,10 @@
 328	OBSOL		__tfork51
 329	STD NOLOCK	{ void sys___set_tcb(void *tcb); }
 330	STD NOLOCK	{ void *sys___get_tcb(void); }
+331	STD NOLOCK	{ zoneid_t sys_zone_create(const char *zonename); }
+332	STD NOLOCK	{ int sys_zone_destroy(zoneid_t z); }
+333	STD NOLOCK	{ int sys_zone_enter(zoneid_t z); }
+334	STD NOLOCK	{ int sys_zone_list(zoneid_t *zs, size_t *nzs); }
+335	STD NOLOCK	{ int sys_zone_name(zoneid_t z, \
+			    char *name, size_t namelen); }
+336	STD NOLOCK	{ zoneid_t sys_zone_id(const char *zonename); }

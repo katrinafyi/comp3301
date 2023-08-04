@@ -76,7 +76,7 @@ db_stack_trace_print(db_expr_t addr, int have_addr, db_expr_t count,
 			struct proc *p;
 			struct user *u;
 			(*pr) ("trace: pid %d ", (int)addr);
-			p = tfind(addr);
+			p = tfind(&proc0, addr);
 			if (p == NULL) {
 				(*pr)("not found\n");
 				return;

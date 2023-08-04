@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .Nm ps
 .Sm off
-.Op Oo Fl Oc Cm AacefHhjkLlmrSTuvwx
+.Op Oo Fl Oc Cm AacefHhjkLlmrSTuvwxZ
 .Sm on
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -49,6 +49,7 @@
 .Op Fl t Ar tty
 .Op Fl U Ar username
 .Op Fl W Ar swap
+.Op Fl z Ar zone
 .Sh DESCRIPTION
 The
 .Nm
@@ -183,6 +184,10 @@ option is specified more than once,
 will use as many columns as necessary without regard for window size.
 .It Fl x
 Display information about processes without controlling terminals.
+.It Fl Z
+Prepends the displayed information with the zone field.
+.It Fl z Ar zone
+Display information about processes running in the specified zone.
 .El
 .Sh KEYWORDS
 The following is a complete list of the available keywords

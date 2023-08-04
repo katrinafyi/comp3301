@@ -1,4 +1,4 @@
-/*	$OpenBSD: syscall.h,v 1.261 2023/02/27 00:58:38 deraadt Exp $	*/
+/*	$OpenBSD$	*/
 
 /*
  * System call numbers.
@@ -726,4 +726,22 @@
 /* syscall: "__get_tcb" ret: "void *" args: */
 #define	SYS___get_tcb	330
 
-#define	SYS_MAXSYSCALL	331
+/* syscall: "zone_create" ret: "zoneid_t" args: "const char *" */
+#define	SYS_zone_create	331
+
+/* syscall: "zone_destroy" ret: "int" args: "zoneid_t" */
+#define	SYS_zone_destroy	332
+
+/* syscall: "zone_enter" ret: "int" args: "zoneid_t" */
+#define	SYS_zone_enter	333
+
+/* syscall: "zone_list" ret: "int" args: "zoneid_t *" "size_t *" */
+#define	SYS_zone_list	334
+
+/* syscall: "zone_name" ret: "int" args: "zoneid_t" "char *" "size_t" */
+#define	SYS_zone_name	335
+
+/* syscall: "zone_id" ret: "zoneid_t" args: "const char *" */
+#define	SYS_zone_id	336
+
+#define	SYS_MAXSYSCALL	337

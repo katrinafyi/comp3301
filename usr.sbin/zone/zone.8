@@ -1,0 +1,86 @@
+.\" $OpenBSD$
+.\"
+.\" Copyright (c) 2023 David Gwynne <dlg@uq.edu.au>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 15 2023 $
+.Dt ZONE 8
+.Os
+.Sh NAME
+.Nm zone
+.Nd control process zone subsystem
+.Sh SYNOPSIS
+.Nm zone
+.Cm create
+.Ar zonename
+.Nm zone
+.Cm destroy
+.Ar zonename
+.Nm zone
+.Cm exec
+.Ar zonename
+.Ar command ...
+.Nm zone
+.Cm id
+.Op Ar zonename
+.Nm zone
+.Cm list
+.Sh DESCRIPTION
+The
+.Nm
+program controls the zone subsystem in the kernel.
+.Pp
+The program provides the following subcommands:
+.Bl -tag -width xxxxxx
+.It Xo
+.Nm
+.Cm create
+.Ar zonename
+.Xc
+Create a zone with the specified name in the kernel.
+.It Xo
+.Nm
+.Cm destroy
+.Ar zonename
+.Xc
+Attempt to destroy the zone with the specified name.
+The zone cannot be destroyed while processes are still running in it.
+.It Xo
+.Nm
+.Cm exec
+.Ar zonename
+.Ar command ...
+.Xc
+Run a command inside the specified zone.
+.It Xo
+.Nm
+.Cm id
+.Op Ar zonename
+.Xc
+Print the zone identifier for the specified zone.
+If a zone name is not specified then the identifier for the current
+zone is printed.
+.It Xo
+.Nm
+.Cm list
+.Xc
+Print a list of the zone identifiers and names.
+.El
+.Sh SEE ALSO
+.Xr pkill 1 ,
+.Xr ps 1
+.Sh HISTORY
+The
+.Nm
+program keeps getting hacked up for use in COMP3301 assignments.

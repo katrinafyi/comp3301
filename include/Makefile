@@ -29,7 +29,7 @@ FILES=	a.out.h ar.h asr.h assert.h \
 	tar.h tgmath.h tib.h time.h ttyent.h \
 	unistd.h utime.h utmp.h uuid.h \
 	vis.h  \
-	wchar.h wctype.h
+	wchar.h wctype.h zones.h
 
 MFILES=	frame.h
 LFILES=	endian.h fcntl.h syslog.h termios.h stdarg.h stdint.h varargs.h

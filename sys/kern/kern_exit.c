@@ -40,6 +40,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/zones.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
@@ -716,7 +717,7 @@ proc_finish_wait(struct proc *waiter, struct proc *p)
 	 */
 	pr = p->p_p;
 	if (pr->ps_oppid != 0 && (pr->ps_oppid != pr->ps_pptr->ps_pid) &&
-	   (tr = prfind(pr->ps_oppid))) {
+	   (tr = prfind(&proc0, pr->ps_oppid))) {
 		pr->ps_oppid = 0;
 		atomic_clearbits_int(&pr->ps_flags, PS_TRACED);
 		process_reparent(pr, tr);
@@ -744,7 +745,7 @@ process_untrace(struct process *pr)
 
 	if (pr->ps_oppid != 0 &&
 	    (pr->ps_oppid != pr->ps_pptr->ps_pid))
-		ppr = prfind(pr->ps_oppid);
+		ppr = prfind(&proc0, pr->ps_oppid);
 
 	/* not being traced any more */
 	pr->ps_oppid = 0;
@@ -814,6 +815,7 @@ process_zap(struct process *pr)
 	if (otvp)
 		vrele(otvp);
 
+	zone_unref(pr->ps_zone);
 	KASSERT(pr->ps_refcnt == 1);
 	if (pr->ps_ptstat != NULL)
 		free(pr->ps_ptstat, M_SUBPROC, sizeof(*pr->ps_ptstat));

@@ -93,7 +93,9 @@ ASM=	__semctl.o __thrsigdivert.o \
 	sysarch.o sysctl.o \
 	thrkill.o truncate.o \
 	unlink.o unlinkat.o \
-	unmount.o unveil.o utimensat.o utimes.o utrace.o
+	unmount.o unveil.o utimensat.o utimes.o utrace.o \
+	zone_create.o zone_destroy.o zone_enter.o zone_list.o zone_name.o \
+	zone_id.o
 
 SRCS+=	${SRCS_${MACHINE_CPU}}
 .for i in ${SRCS_${MACHINE_CPU}}

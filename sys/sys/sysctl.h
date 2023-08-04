@@ -491,6 +491,7 @@ struct kinfo_proc {
 
 	u_int64_t p_pledge;		/* U_INT64_T: Pledge flags. */
 	char	p_name[KI_MAXCOMLEN];	/* thread name */
+	int32_t   p_zoneid;		/* ZONEID_T: zone identifier. */
 };
 
 /*
@@ -727,6 +728,7 @@ do {									\
 									\
 	(kp)->p_cpuid = KI_NOCPU;					\
 	(kp)->p_rtableid = (pr)->ps_rtableid;				\
+	(kp)->p_zoneid = zone_id((pr)->ps_zone);			\
 } while (0)
 
 #endif /* defined(_KERNEL) || defined(_LIBKVM) */
@@ -1051,7 +1053,7 @@ int sysctl_rdstring(void *, size_t *, void *, const char *);
 int sysctl_rdstruct(void *, size_t *, void *, const void *, size_t);
 int sysctl_struct(void *, size_t *, void *, size_t, void *, size_t);
 int sysctl_file(int *, u_int, char *, size_t *, struct proc *);
-int sysctl_doproc(int *, u_int, char *, size_t *);
+int sysctl_doproc(int *, u_int, char *, size_t *, struct proc *);
 struct mbuf_queue;
 int sysctl_mq(int *, u_int, void *, size_t *, void *, size_t,
     struct mbuf_queue *);

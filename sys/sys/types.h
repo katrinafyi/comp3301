@@ -145,6 +145,7 @@ typedef	__nlink_t	nlink_t;	/* link count */
 typedef	__rlim_t	rlim_t;		/* resource limit */
 typedef	__segsz_t	segsz_t;	/* segment size */
 typedef	__uid_t		uid_t;		/* user id */
+typedef	__zoneid_t	zoneid_t;	/* zone id */
 typedef	__useconds_t	useconds_t;	/* microseconds */
 typedef	__suseconds_t	suseconds_t;	/* microseconds (signed) */
 typedef	__fsblkcnt_t	fsblkcnt_t;	/* file system block count */

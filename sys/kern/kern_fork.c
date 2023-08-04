@@ -43,6 +43,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/zones.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
@@ -258,6 +259,8 @@ process_new(struct proc *p, struct process *parent, int flags)
 		pr->ps_vmspace = uvmspace_share(parent);
 	else
 		pr->ps_vmspace = uvmspace_fork(parent);
+
+	pr->ps_zone = zone_ref(parent->ps_zone);
 
 	if (parent->ps_flags & PS_PROFIL)
 		startprofclock(pr);
@@ -601,7 +604,7 @@ alloctid(void)
 	do {
 		/* (0 .. TID_MASK+1] */
 		tid = 1 + (arc4random() & TID_MASK);
-	} while (tfind(tid) != NULL);
+	} while (tfind(&proc0, tid) != NULL);
 
 	return (tid);
 }
@@ -619,7 +622,7 @@ ispidtaken(pid_t pid)
 		if (pid == oldpids[i])
 			return (1);
 
-	if (prfind(pid) != NULL)
+	if (prfind(&proc0, pid) != NULL)
 		return (1);
 	if (pgfind(pid) != NULL)
 		return (1);

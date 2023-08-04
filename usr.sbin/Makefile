@@ -19,7 +19,7 @@ SUBDIR=	ac accton acme-client acpidump adduser amd apm apmd arp authpf \
 	snmpd spamdb syslogc syslogd sysmerge syspatch sysupgrade \
 	tcpdrop tcpdump tftp-proxy tftpd tokenadm tokeninit traceroute \
 	trpt unbound unwindctl usbdevs user vmd vmctl vipw \
-	watchdogd wsconscfg wsfontload wsmoused zdump zic
+	watchdogd wsconscfg wsfontload wsmoused zdump zic zone
 
 .if (${YP:L} == "yes")
 SUBDIR+=ypbind ypldap yppoll ypset ypserv

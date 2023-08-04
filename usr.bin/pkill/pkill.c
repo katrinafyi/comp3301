@@ -52,6 +52,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <errno.h>
+#include <zones.h>
 
 #define	STATUS_MATCH	0
 #define	STATUS_NOMATCH	1
@@ -107,6 +108,7 @@ static int	grepact(struct kinfo_proc *, int);
 static void	makelist(struct listhead *, enum listtype, char *);
 static char	*getargv(struct kinfo_proc *);
 static int	askyn(struct kinfo_proc *);
+static zoneid_t	getzoneid(const char *);
 
 extern char *__progname;
 
@@ -148,6 +150,8 @@ main(int argc, char **argv)
 	u_int32_t bestsec, bestusec;
 	regex_t reg;
 	regmatch_t regmatch;
+	const char *zone = NULL;
+	zoneid_t z = -1;
 
 	if (strcmp(__progname, "pgrep") == 0) {
 		action = grepact;
@@ -180,7 +184,7 @@ main(int argc, char **argv)
 
 	criteria = 0;
 
-	while ((ch = getopt(argc, argv, "G:P:T:U:d:fg:Ilnoqs:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "G:P:T:U:d:fg:Ilnoqs:t:u:vxz:")) != -1)
 		switch (ch) {
 		case 'G':
 			makelist(&rgidlist, LT_GROUP, optarg);
@@ -245,6 +249,9 @@ main(int argc, char **argv)
 		case 'x':
 			fullmatch = 1;
 			break;
+		case 'z':
+			zone = optarg;
+			break;
 		default:
 			usage();
 			/* NOTREACHED */
@@ -258,6 +265,9 @@ main(int argc, char **argv)
 		usage();
 
 	mypid = getpid();
+
+	if (zone != NULL)
+		z = getzoneid(zone);
 
 	/*
 	 * Retrieve the list of running processes from the kernel.
@@ -299,6 +309,8 @@ main(int argc, char **argv)
 		for (i = 0, kp = plist; i < nproc; i++, kp++) {
 			if (kp->p_pid == mypid)
 				continue;
+			if (z != -1 && z != kp->p_zoneid)
+				continue;
 
 			if (matchargs)
 				mstr = getargv(kp);
@@ -324,6 +336,8 @@ main(int argc, char **argv)
 
 	for (i = 0, kp = plist; i < nproc; i++, kp++) {
 		if (kp->p_pid == mypid)
+			continue;
+		if (z != -1 && z != kp->p_zoneid)
 			continue;
 
 		SLIST_FOREACH(li, &ruidlist, li_chain)
@@ -435,6 +449,8 @@ main(int argc, char **argv)
 	for (i = 0, j = 0, kp = plist; i < nproc; i++, kp++) {
 		if (kp->p_pid == mypid)
 			continue;
+		if (z != -1 && z != kp->p_zoneid)
+			continue;
 		if (selected[i] == inverse)
 			continue;
 
@@ -468,7 +484,8 @@ usage(void)
 		ustr = "[-signal] [-fIlnoqvx]";
 
 	fprintf(stderr, "usage: %s %s [-G gid] [-g pgrp] [-P ppid] [-s sid]"
-	    "\n\t[-T rtable] [-t tty] [-U uid] [-u euid] [pattern ...]\n",
+	    "\n\t[-T rtable] [-t tty] [-U uid] [-u euid] [-z zone] "
+	    "[pattern ...]\n",
 	    __progname, ustr);
 
 	exit(STATUS_BADUSAGE);
@@ -629,4 +646,23 @@ makelist(struct listhead *head, enum listtype type, char *src)
 
 	if (empty)
 		usage();
+}
+
+zoneid_t
+getzoneid(const char *zone)
+{
+	const char *errstr;
+	zoneid_t z;
+
+	z = zone_id(zone);
+	if (z == -1) {
+		if (errno != ESRCH)
+			err(1, "zone id");
+
+		z = strtonum(zone, 0, MAXZONEIDS, &errstr);
+		if (errstr != NULL)
+			errx(1, "unknown zone \"%s\"", zone);
+	}
+
+	return (z);
 }

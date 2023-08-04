@@ -1,4 +1,4 @@
-/*	$OpenBSD: syscalls.c,v 1.262 2023/02/27 00:58:38 deraadt Exp $	*/
+/*	$OpenBSD$	*/
 
 /*
  * System call names.
@@ -393,4 +393,10 @@ const char *const syscallnames[] = {
 	"#328 (obsolete __tfork51)",		/* 328 = obsolete __tfork51 */
 	"__set_tcb",			/* 329 = __set_tcb */
 	"__get_tcb",			/* 330 = __get_tcb */
+	"zone_create",			/* 331 = zone_create */
+	"zone_destroy",			/* 332 = zone_destroy */
+	"zone_enter",			/* 333 = zone_enter */
+	"zone_list",			/* 334 = zone_list */
+	"zone_name",			/* 335 = zone_name */
+	"zone_id",			/* 336 = zone_id */
 };

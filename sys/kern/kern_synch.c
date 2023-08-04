@@ -818,6 +818,21 @@ refcnt_rele(struct refcnt *r)
 	return (0);
 }
 
+int
+refcnt_rele_last(struct refcnt *r)
+{
+	u_int refs;
+
+	membar_exit_before_atomic();
+	refs = atomic_cas_uint(&r->r_refs, 1, 0);
+	if (refs == 1) {
+		TRACEINDEX(refcnt, r->r_traceidx, r, refs, -1);
+		membar_enter_after_atomic();
+		return (1);
+	}
+	return (0);
+}
+
 void
 refcnt_rele_wake(struct refcnt *r)
 {

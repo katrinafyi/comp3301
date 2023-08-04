@@ -481,7 +481,7 @@ doktrace(struct vnode *vp, int ops, int facs, pid_t pid, struct proc *p)
 		/*
 		 * by pid
 		 */
-		pr = prfind(pid);
+		pr = prfind(p, pid);
 		if (pr == NULL) {
 			error = ESRCH;
 			goto done;

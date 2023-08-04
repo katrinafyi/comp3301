@@ -63,6 +63,7 @@ typedef	long		__suseconds_t;	/* microseconds (signed) */
 typedef	__int64_t	__time_t;	/* epoch time */
 typedef	__int32_t	__timer_t;	/* POSIX timer identifiers */
 typedef	__uint32_t	__uid_t;	/* user id */
+typedef	__int32_t	__zoneid_t;	/* zone id */
 typedef	__uint32_t	__useconds_t;	/* microseconds */
 
 /*

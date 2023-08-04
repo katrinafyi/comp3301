@@ -1774,3 +1774,10 @@ yperr_string
 ypprot_err
 _yp_check		/* chpass, passwd, login_chpass */
 yp_unbind
+
+zone_create
+zone_destroy
+zone_enter
+zone_list
+zone_name
+zone_id

@@ -1,4 +1,4 @@
-/*	$OpenBSD: syscallargs.h,v 1.264 2023/02/27 00:58:38 deraadt Exp $	*/
+/*	$OpenBSD$	*/
 
 /*
  * System call argument lists.
@@ -1148,6 +1148,33 @@ struct sys___set_tcb_args {
 	syscallarg(void *) tcb;
 };
 
+struct sys_zone_create_args {
+	syscallarg(const char *) zonename;
+};
+
+struct sys_zone_destroy_args {
+	syscallarg(zoneid_t) z;
+};
+
+struct sys_zone_enter_args {
+	syscallarg(zoneid_t) z;
+};
+
+struct sys_zone_list_args {
+	syscallarg(zoneid_t *) zs;
+	syscallarg(size_t *) nzs;
+};
+
+struct sys_zone_name_args {
+	syscallarg(zoneid_t) z;
+	syscallarg(char *) name;
+	syscallarg(size_t) namelen;
+};
+
+struct sys_zone_id_args {
+	syscallarg(const char *) zonename;
+};
+
 /*
  * System call prototypes.
  */
@@ -1407,3 +1434,9 @@ int	sys_symlinkat(struct proc *, void *, register_t *);
 int	sys_unlinkat(struct proc *, void *, register_t *);
 int	sys___set_tcb(struct proc *, void *, register_t *);
 int	sys___get_tcb(struct proc *, void *, register_t *);
+int	sys_zone_create(struct proc *, void *, register_t *);
+int	sys_zone_destroy(struct proc *, void *, register_t *);
+int	sys_zone_enter(struct proc *, void *, register_t *);
+int	sys_zone_list(struct proc *, void *, register_t *);
+int	sys_zone_name(struct proc *, void *, register_t *);
+int	sys_zone_id(struct proc *, void *, register_t *);

@@ -45,6 +45,7 @@
 #include <sys/malloc.h>
 #include <sys/pool.h>
 #include <sys/proc.h>
+#include <sys/zones.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/fcntl.h>
@@ -352,7 +353,7 @@ kern_sysctl_dirs(int top_name, int *name, u_int namelen,
 	switch (top_name) {
 #ifndef SMALL_KERNEL
 	case KERN_PROC:
-		return (sysctl_doproc(name, namelen, oldp, oldlenp));
+		return (sysctl_doproc(name, namelen, oldp, oldlenp, p));
 	case KERN_PROC_ARGS:
 		return (sysctl_proc_args(name, namelen, oldp, oldlenp, p));
 	case KERN_PROC_CWD:
@@ -1500,7 +1501,8 @@ sysctl_file(int *name, u_int namelen, char *where, size_t *sizep,
 #define KERN_PROCSLOP	5
 
 int
-sysctl_doproc(int *name, u_int namelen, char *where, size_t *sizep)
+sysctl_doproc(int *name, u_int namelen, char *where, size_t *sizep,
+    struct proc *cp)
 {
 	struct kinfo_proc *kproc = NULL;
 	struct proc *p;
@@ -1535,6 +1537,9 @@ sysctl_doproc(int *name, u_int namelen, char *where, size_t *sizep)
 	doingzomb = 0;
 again:
 	for (; pr != NULL; pr = LIST_NEXT(pr, ps_list)) {
+		if (!zone_visible(cp->p_p, pr))
+			continue;
+
 		/* XXX skip processes in the middle of being zapped */
 		if (pr->ps_pgrp == NULL)
 			continue;
@@ -1763,7 +1768,7 @@ sysctl_proc_args(int *name, u_int namelen, void *oldp, size_t *oldlenp,
 		return (EOPNOTSUPP);
 	}
 
-	if ((vpr = prfind(pid)) == NULL)
+	if ((vpr = prfind(cp, pid)) == NULL)
 		return (ESRCH);
 
 	if (oldp == NULL) {
@@ -1954,7 +1959,7 @@ sysctl_proc_cwd(int *name, u_int namelen, void *oldp, size_t *oldlenp,
 		return (EINVAL);
 
 	pid = name[0];
-	if ((findpr = prfind(pid)) == NULL)
+	if ((findpr = prfind(cp, pid)) == NULL)
 		return (ESRCH);
 
 	if (oldp == NULL) {
@@ -2016,7 +2021,7 @@ sysctl_proc_nobroadcastkill(int *name, u_int namelen, void *newp, size_t newlen,
 		return (EINVAL);
 
 	pid = name[0];
-	if ((findpr = prfind(pid)) == NULL)
+	if ((findpr = prfind(cp, pid)) == NULL)
 		return (ESRCH);
 
 	/* Either system process or exiting/zombie */
@@ -2077,7 +2082,7 @@ sysctl_proc_vmmap(int *name, u_int namelen, void *oldp, size_t *oldlenp,
 		/* Self process mapping. */
 		findpr = cp->p_p;
 	} else if (pid > 0) {
-		if ((findpr = prfind(pid)) == NULL)
+		if ((findpr = prfind(cp, pid)) == NULL)
 			return (ESRCH);
 
 		/* Either system process or exiting/zombie */

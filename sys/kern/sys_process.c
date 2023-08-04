@@ -72,7 +72,9 @@
 
 static inline int	process_checktracestate(struct process *_curpr,
 			    struct process *_tr, struct proc *_t);
-static inline struct process *process_tprfind(pid_t _tpid, struct proc **_tp);
+static inline struct process *
+			process_tprfind(struct proc *, pid_t _tpid,
+			    struct proc **_tp);
 
 int	ptrace_ctrl(struct proc *, int, pid_t, caddr_t, int);
 int	ptrace_ustate(struct proc *, int, pid_t, void *, int, register_t *);
@@ -297,7 +299,7 @@ ptrace_ctrl(struct proc *p, int req, pid_t pid, caddr_t addr, int data)
 	case PT_ATTACH:
 	case PT_DETACH:
 		/* Find the process we're supposed to be operating on. */
-		if ((tr = prfind(pid)) == NULL) {
+		if ((tr = prfind(p, pid)) == NULL) {
 			error = ESRCH;
 			goto fail;
 		}
@@ -309,7 +311,7 @@ ptrace_ctrl(struct proc *p, int req, pid_t pid, caddr_t addr, int data)
 #ifdef PT_STEP
 	case PT_STEP:
 #endif
-		if ((tr = process_tprfind(pid, &t)) == NULL) {
+		if ((tr = process_tprfind(p, pid, &t)) == NULL) {
 			error = ESRCH;
 			goto fail;
 		}
@@ -542,7 +544,7 @@ ptrace_kstate(struct proc *p, int req, pid_t pid, void *addr)
 	KASSERT((p->p_flag & P_SYSTEM) == 0);
 
 	/* Find the process we're supposed to be operating on. */
-	if ((tr = prfind(pid)) == NULL)
+	if ((tr = prfind(p, pid)) == NULL)
 		return ESRCH;
 
 	if ((error = process_checktracestate(p->p_p, tr, NULL)))
@@ -556,7 +558,7 @@ ptrace_kstate(struct proc *p, int req, pid_t pid, void *addr)
 		struct proc *t;
 
 		if (req == PT_GET_THREAD_NEXT) {
-			t = tfind_user(pts->pts_tid, tr);
+			t = tfind_user(p, pts->pts_tid, tr);
 			if (t == NULL || ISSET(t->p_flag, P_WEXIT))
 				return ESRCH;
 			t = TAILQ_NEXT(t, p_thr_link);
@@ -610,7 +612,7 @@ ptrace_ustate(struct proc *p, int req, pid_t pid, void *addr, int data,
 	KASSERT((p->p_flag & P_SYSTEM) == 0);
 
 	/* Accept either PID or TID */
-	if ((tr = process_tprfind(pid, &t)) == NULL)
+	if ((tr = process_tprfind(p, pid, &t)) == NULL)
 		return ESRCH;
 
 	if ((error = process_checktracestate(p->p_p, tr, t)))
@@ -747,17 +749,17 @@ ptrace_ustate(struct proc *p, int req, pid_t pid, void *addr, int data,
  * to an appropriate thread in that process.
  */
 static inline struct process *
-process_tprfind(pid_t tpid, struct proc **tp)
+process_tprfind(struct proc *p, pid_t tpid, struct proc **tp)
 {
 	if (tpid > THREAD_PID_OFFSET) {
-		struct proc *t = tfind(tpid - THREAD_PID_OFFSET);
+		struct proc *t = tfind(p, tpid - THREAD_PID_OFFSET);
 
 		if (t == NULL)
 			return NULL;
 		*tp = t;
 		return t->p_p;
 	} else {
-		struct process *tr = prfind(tpid);
+		struct process *tr = prfind(p, tpid);
 
 		if (tr == NULL)
 			return NULL;

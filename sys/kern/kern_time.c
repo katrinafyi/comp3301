@@ -139,7 +139,7 @@ clock_gettime(struct proc *p, clockid_t clock_id, struct timespec *tp)
 		/* check for clock from pthread_getcpuclockid() */
 		if (__CLOCK_TYPE(clock_id) == CLOCK_THREAD_CPUTIME_ID) {
 			KERNEL_LOCK();
-			q = tfind_user(__CLOCK_PTID(clock_id), p->p_p);
+			q = tfind_user(p, __CLOCK_PTID(clock_id), p->p_p);
 			if (q == NULL)
 				error = ESRCH;
 			else
@@ -243,7 +243,7 @@ sys_clock_getres(struct proc *p, void *v, register_t *retval)
 		/* check for clock from pthread_getcpuclockid() */
 		if (__CLOCK_TYPE(clock_id) == CLOCK_THREAD_CPUTIME_ID) {
 			KERNEL_LOCK();
-			q = tfind_user(__CLOCK_PTID(clock_id), p->p_p);
+			q = tfind_user(p, __CLOCK_PTID(clock_id), p->p_p);
 			if (q == NULL)
 				error = ESRCH;
 			else

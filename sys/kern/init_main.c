@@ -44,6 +44,7 @@
 #include <sys/kthread.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/zones.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
@@ -255,6 +256,11 @@ main(void *framep)
 	p->p_ucred->cr_ngroups = 1;	/* group 0 */
 
 	/*
+	 * Initialize zone subsystem.
+	 */
+	zone_boot();
+
+	/*
 	 * Create process 0 (the swapper).
 	 */
 	pr = &process0;
@@ -266,6 +272,7 @@ main(void *framep)
 
 	/* Set the default routing table/domain. */
 	process0.ps_rtableid = 0;
+	process0.ps_zone = zone_ref(global_zone);
 
 	LIST_INSERT_HEAD(&allproc, p, p_list);
 	pr->ps_pgrp = &pgrp0;

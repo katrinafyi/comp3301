@@ -61,6 +61,7 @@ void	 nlisterr(struct nlist *);
 void	 p_rssize(const struct pinfo *, VARENT *);
 void	 pagein(const struct pinfo *, VARENT *);
 void	 parsefmt(char *);
+void	 zonefmt(void);
 void	 pcpu(const struct pinfo *, VARENT *);
 void	 pmem(const struct pinfo *, VARENT *);
 void	 pri(const struct pinfo *, VARENT *);
@@ -83,5 +84,6 @@ void	 ucomm(const struct pinfo *, VARENT *);
 void	 curwd(const struct pinfo *, VARENT *);
 void	 euname(const struct pinfo *, VARENT *);
 void	 vsize(const struct pinfo *, VARENT *);
+void	 zvar(const struct pinfo *, VARENT *);
 void	 wchan(const struct pinfo *, VARENT *);
 __END_DECLS

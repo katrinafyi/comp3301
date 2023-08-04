@@ -113,6 +113,7 @@ struct tusage {
 struct futex;
 LIST_HEAD(futex_list, futex);
 struct proc;
+struct zone;
 struct tslpentry;
 TAILQ_HEAD(tslpqueue, tslpentry);
 struct unveil;
@@ -160,6 +161,7 @@ struct process {
 	struct	vnode *ps_textvp;	/* Vnode of executable. */
 	struct	filedesc *ps_fd;	/* Ptr to open files structure */
 	struct	vmspace *ps_vmspace;	/* Address space */
+	struct	zone *ps_zone;		/* Zone reference */
 	pid_t	ps_pid;			/* Process identifier. */
 
 	struct	futex_list ps_ftlist;	/* futexes attached to this process */
@@ -499,6 +501,7 @@ extern u_long pidhash;
 extern LIST_HEAD(pgrphashhead, pgrp) *pgrphashtbl;
 extern u_long pgrphash;
 
+extern struct zone * const global_zone;	/* Address of the global zone */
 extern struct proc proc0;		/* Process slot for swapper. */
 extern struct process process0;		/* Process slot for kernel threads. */
 extern int nprocesses, maxprocess;	/* Cur and max number of processes. */
@@ -523,11 +526,11 @@ extern struct pool pgrp_pool;		/* memory pool for pgrps */
 
 void	freepid(pid_t);
 
-struct process *prfind(pid_t);	/* Find process by id. */
+struct process *prfind(struct proc *, pid_t); /* Find process by id. */
 struct process *zombiefind(pid_t); /* Find zombie process by id. */
-struct proc *tfind(pid_t);	/* Find thread by id. */
+struct proc *tfind(struct proc *, pid_t); /* Find thread by id. */
 struct pgrp *pgfind(pid_t);	/* Find process group by id. */
-struct proc *tfind_user(pid_t, struct process *);
+struct proc *tfind_user(struct proc *, pid_t, struct process *);
 				/* Find thread by userspace id. */
 void	proc_printit(struct proc *p, const char *modif,
     int (*pr)(const char *, ...));

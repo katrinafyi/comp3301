@@ -997,7 +997,7 @@ ttioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 		if (pgid < 0) {
 			pgrp = pgfind(-pgid);
 		} else {
-			pr1 = prfind(pgid);
+			pr1 = prfind(p, pgid);
 			if (pr1 == NULL)
 				return (ESRCH);
 			pgrp = pr1->ps_pgrp;

@@ -50,6 +50,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <zones.h>
 #include <limits.h>
 #include <pwd.h>
 
@@ -838,4 +839,24 @@ pvar(const struct pinfo *pi, VARENT *ve)
 		(void)printf("%*s", v->width, "-");
 	else
 		printval((char *)kp + v->off, v);
+}
+
+int	zone_name(zoneid_t, char *, size_t);
+
+void
+zvar(const struct pinfo *pi, VARENT *ve)
+{
+	const struct kinfo_proc *kp = pi->ki;
+	char zonename[MAXZONENAMELEN];
+	VAR *v = ve->var;
+	int width;
+
+	if (zone_name(kp->p_zoneid, zonename, sizeof(zonename)) == -1)
+		err(1, "zone_name");
+
+	if (strlen(zonename) > v->width) {
+		width = v->width - 1;
+		(void)printf("%*.*s*", width, width, zonename);
+	} else
+		(void)printf("%*s", (int)v->width, zonename);
 }

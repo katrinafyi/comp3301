@@ -140,7 +140,7 @@ usl_sync_done(struct usl_syncdata *sd)
 int
 usl_sync_check(struct usl_syncdata *sd)
 {
-	if (sd->s_process == prfind(sd->s_pid))
+	if (sd->s_process == prfind(&proc0, sd->s_pid))
 		return (1);
 	DPRINTF(("usl_sync_check: process %d died\n", sd->s_pid));
 	usl_sync_done(sd);

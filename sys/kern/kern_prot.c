@@ -109,7 +109,7 @@ sys_getpgid(struct proc *curp, void *v, register_t *retval)
 
 	if (SCARG(uap, pid) == 0 || SCARG(uap, pid) == targpr->ps_pid)
 		goto found;
-	if ((targpr = prfind(SCARG(uap, pid))) == NULL)
+	if ((targpr = prfind(curp, SCARG(uap, pid))) == NULL)
 		return (ESRCH);
 	if (targpr->ps_session != curp->p_p->ps_session)
 		return (EPERM);
@@ -128,7 +128,7 @@ sys_getsid(struct proc *curp, void *v, register_t *retval)
 
 	if (SCARG(uap, pid) == 0 || SCARG(uap, pid) == targpr->ps_pid)
 		goto found;
-	if ((targpr = prfind(SCARG(uap, pid))) == NULL)
+	if ((targpr = prfind(curp, SCARG(uap, pid))) == NULL)
 		return (ESRCH);
 	if (targpr->ps_session != curp->p_p->ps_session)
 		return (EPERM);
@@ -270,7 +270,7 @@ sys_setpgid(struct proc *curp, void *v, register_t *retval)
 	newpgrp = pool_get(&pgrp_pool, PR_WAITOK);
 
 	if (pid != 0 && pid != curpr->ps_pid) {
-		if ((targpr = prfind(pid)) == NULL ||
+		if ((targpr = prfind(curp, pid)) == NULL ||
 		    !inferior(targpr, curpr)) {
 			error = ESRCH;
 			goto out;
@@ -1124,7 +1124,7 @@ sys_getthrname(struct proc *curp, void *v, register_t *retval)
 	int tid = SCARG(uap, tid);
 	int error;
 
-	p = tid ? tfind_user(tid, curp->p_p) : curp;
+	p = tid ? tfind_user(curp, tid, curp->p_p) : curp;
 	if (p == NULL)
                 return ESRCH;
 
@@ -1150,7 +1150,7 @@ sys_setthrname(struct proc *curp, void *v, register_t *retval)
 	int tid = SCARG(uap, tid);
 	int error;
 
-	p = tid ? tfind_user(tid, curp->p_p) : curp;
+	p = tid ? tfind_user(curp, tid, curp->p_p) : curp;
 	if (p == NULL)
                 return ESRCH;
 

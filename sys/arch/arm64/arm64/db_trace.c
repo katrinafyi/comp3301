@@ -87,7 +87,7 @@ db_stack_trace_print(db_expr_t addr, int have_addr, db_expr_t count,
 		frame = ddb_regs.tf_x[29];
 	} else {
 		if (trace_thread) {
-			struct proc *p = tfind((pid_t)addr);
+			struct proc *p = tfind(&proc0, (pid_t)addr);
 			if (p == NULL) {
 				(*pr)("not found\n");
 				return;

@@ -271,6 +271,9 @@ const uint64_t pledge_syscalls[SYS_MAXSYSCALL] = {
 	[SYS___thrsigdivert] = PLEDGE_STDIO,
 	[SYS_getthrname] = PLEDGE_STDIO,
 	[SYS_setthrname] = PLEDGE_STDIO,
+	[SYS_zone_name] = PLEDGE_STDIO,
+	[SYS_zone_list] = PLEDGE_STDIO,
+	[SYS_zone_id] = PLEDGE_STDIO,
 
 	[SYS_fork] = PLEDGE_PROC,
 	[SYS_vfork] = PLEDGE_PROC,

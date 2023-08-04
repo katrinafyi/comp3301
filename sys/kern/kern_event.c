@@ -331,7 +331,7 @@ filt_procattach(struct knote *kn)
 	if (kn->kn_id > PID_MAX)
 		return ESRCH;
 
-	pr = prfind(kn->kn_id);
+	pr = prfind(curproc, kn->kn_id);
 	if (pr == NULL)
 		return (ESRCH);
 

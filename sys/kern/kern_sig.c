@@ -157,12 +157,15 @@ cansignal(struct proc *p, struct process *qr, int signum)
 	if (pr == qr)
 		return (1);		/* process can always signal itself */
 
+	if (signum == SIGCONT && qr->ps_session == pr->ps_session)
+		return (1);		/* SIGCONT in session */
+
+	if (pr->ps_zone != qr->ps_zone)
+		return (0);		/* fail non-root in the gz */
+
 	/* optimization: if the same creds then the tests below will pass */
 	if (uc == quc)
 		return (1);
-
-	if (signum == SIGCONT && qr->ps_session == pr->ps_session)
-		return (1);		/* SIGCONT in session */
 
 	/*
 	 * Using kill(), only certain signals can be sent to setugid
@@ -601,7 +604,7 @@ sys_kill(struct proc *cp, void *v, register_t *retval)
 	if (((u_int)signum) >= NSIG)
 		return (EINVAL);
 	if (pid > 0) {
-		if ((pr = prfind(pid)) == NULL) {
+		if ((pr = prfind(cp, pid)) == NULL) {
 			if ((pr = zombiefind(pid)) == NULL)
 				return (ESRCH);
 			else
@@ -641,7 +644,7 @@ sys_thrkill(struct proc *cp, void *v, register_t *retval)
 	if (((u_int)signum) >= NSIG)
 		return (EINVAL);
 
-	p = tid ? tfind_user(tid, cp->p_p) : cp;
+	p = tid ? tfind_user(cp, tid, cp->p_p) : cp;
 	if (p == NULL)
 		return (ESRCH);
 
@@ -2320,7 +2323,7 @@ sigio_setown(struct sigio_ref *sir, u_long cmd, caddr_t data)
 	mtx_enter(&sigio_lock);
 
 	if (pgid > 0) {
-		pr = prfind(pgid);
+		pr = prfind(&proc0, pgid);
 		if (pr == NULL) {
 			error = ESRCH;
 			goto fail;

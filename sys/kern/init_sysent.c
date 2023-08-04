@@ -1,4 +1,4 @@
-/*	$OpenBSD: init_sysent.c,v 1.264 2023/02/27 00:58:38 deraadt Exp $	*/
+/*	$OpenBSD$	*/
 
 /*
  * System call switch table.
@@ -751,5 +751,17 @@ const struct sysent sysent[] = {
 	    sys___set_tcb },			/* 329 = __set_tcb */
 	{ 0, 0, SY_NOLOCK | 0,
 	    sys___get_tcb },			/* 330 = __get_tcb */
+	{ 1, s(struct sys_zone_create_args), SY_NOLOCK | 0,
+	    sys_zone_create },			/* 331 = zone_create */
+	{ 1, s(struct sys_zone_destroy_args), SY_NOLOCK | 0,
+	    sys_zone_destroy },			/* 332 = zone_destroy */
+	{ 1, s(struct sys_zone_enter_args), SY_NOLOCK | 0,
+	    sys_zone_enter },			/* 333 = zone_enter */
+	{ 2, s(struct sys_zone_list_args), SY_NOLOCK | 0,
+	    sys_zone_list },			/* 334 = zone_list */
+	{ 3, s(struct sys_zone_name_args), SY_NOLOCK | 0,
+	    sys_zone_name },			/* 335 = zone_name */
+	{ 1, s(struct sys_zone_id_args), SY_NOLOCK | 0,
+	    sys_zone_id },			/* 336 = zone_id */
 };
 

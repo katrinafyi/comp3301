@@ -38,6 +38,7 @@ void	refcnt_init(struct refcnt *);
 void	refcnt_init_trace(struct refcnt *, int id);
 void	refcnt_take(struct refcnt *);
 int	refcnt_rele(struct refcnt *);
+int	refcnt_rele_last(struct refcnt *);
 void	refcnt_rele_wake(struct refcnt *);
 void	refcnt_finalize(struct refcnt *, const char *);
 int	refcnt_shared(struct refcnt *);

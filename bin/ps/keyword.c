@@ -190,6 +190,7 @@ VAR var[] = {
 	{"vsz", "VSZ", NULL, 0, vsize, 5},
 	{"wchan", "WCHAN", NULL, LJUST, wchan, WCHANLEN},
 	{"xstat", "XSTAT", NULL, 0, pvar, 4, 0, POFF(p_xstat), UINT16, "x"},
+	{"zone", "ZONE", NULL, 0, zvar, 8, 0, POFF(p_zoneid)},
 	{""},
 };
 
@@ -246,6 +247,20 @@ parsefmt(char *p)
 	}
 	if (!vhead)
 		errx(1, "no valid keywords");
+}
+
+void
+zonefmt(void)
+{
+	struct varent *vent;
+
+	vent = malloc(sizeof(*vent));
+	if (vent == NULL)
+		err(1, "zone fmt malloc");
+
+	vent->var = findvar("zone");
+	vent->next = vhead;
+	vhead = vent;
 }
 
 static VAR *

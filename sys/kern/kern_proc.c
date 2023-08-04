@@ -35,6 +35,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/zones.h>
 #include <sys/wait.h>
 #include <sys/rwlock.h>
 #include <sys/malloc.h>
@@ -189,13 +190,13 @@ inferior(struct process *pr, struct process *parent)
  * Locate a proc (thread) by number
  */
 struct proc *
-tfind(pid_t tid)
+tfind(struct proc *self, pid_t tid)
 {
 	struct proc *p;
 
 	LIST_FOREACH(p, TIDHASH(tid), p_hash)
 		if (p->p_tid == tid)
-			return (p);
+			return (zone_visible(self->p_p, p->p_p) ? p : NULL);
 	return (NULL);
 }
 
@@ -203,13 +204,13 @@ tfind(pid_t tid)
  * Locate a thread by userspace id, from a given process.
  */
 struct proc *
-tfind_user(pid_t tid, struct process *pr)
+tfind_user(struct proc *self, pid_t tid, struct process *pr)
 {
 	struct proc *p;
 
 	if (tid < THREAD_PID_OFFSET)
 		return NULL;
-	p = tfind(tid - THREAD_PID_OFFSET);
+	p = tfind(self, tid - THREAD_PID_OFFSET);
 
 	/* verify we found a thread in the correct process */
 	if (p != NULL && p->p_p != pr)
@@ -221,13 +222,13 @@ tfind_user(pid_t tid, struct process *pr)
  * Locate a process by number
  */
 struct process *
-prfind(pid_t pid)
+prfind(struct proc *self, pid_t pid)
 {
 	struct process *pr;
 
 	LIST_FOREACH(pr, PIDHASH(pid), ps_hash)
 		if (pr->ps_pid == pid)
-			return (pr);
+			return (zone_visible(self->p_p, pr) ? pr : NULL);
 	return (NULL);
 }
 
@@ -513,7 +514,7 @@ db_kill_cmd(db_expr_t addr, int have_addr, db_expr_t count, char *modif)
 	struct process *pr;
 	struct proc *p;
 
-	pr = prfind(addr);
+	pr = prfind(&proc0, addr);
 	if (pr == NULL) {
 		db_printf("%ld: No such process", addr);
 		return;

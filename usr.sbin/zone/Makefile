@@ -1,0 +1,9 @@
+
+PROG=	zone
+SRCS=	zone.c
+CFLAGS+= -Wall
+CDIAGFLAGS=
+
+MAN=	zone.8
+
+.include <bsd.prog.mk>
