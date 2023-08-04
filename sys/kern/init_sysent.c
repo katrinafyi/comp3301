@@ -1,4 +1,4 @@
-/*	$OpenBSD: init_sysent.c,v 1.264 2023/02/27 00:58:38 deraadt Exp $	*/
+/*	$OpenBSD$	*/
 
 /*
  * System call switch table.
@@ -751,5 +751,7 @@ const struct sysent sysent[] = {
 	    sys___set_tcb },			/* 329 = __set_tcb */
 	{ 0, 0, SY_NOLOCK | 0,
 	    sys___get_tcb },			/* 330 = __get_tcb */
+	{ 4, s(struct sys_add2_args), 0,
+	    sys_add2 },				/* 331 = add2 */
 };
 
