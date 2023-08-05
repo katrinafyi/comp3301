@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#undef _KERNEL
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -26,6 +27,7 @@
 #include <unistd.h>
 #include <err.h>
 #include <errno.h>
+#include <assert.h>
 #include <zones.h>
 
 #ifndef nitems
@@ -53,12 +55,16 @@ static int	zid(int, char *[]);
 static const char zlist_usage[] = "list";
 static int	zlist(int, char *[]);
 
+static const char zstats_usage[] = "stats [-H] [-o property[,...]] [-s property] [zonename ...]";
+static int	zstats(int, char *[]);
+
 static const struct task tasks[] = {
 	{ "create",	zcreate,	zcreate_usage },
 	{ "destroy",	zdestroy,	zdestroy_usage },
 	{ "exec",	zexec,		zexec_usage },
 	{ "list",	zlist,		zlist_usage },
 	{ "id",		zid,		zid_usage },
+	{ "stats",	zstats,		zstats_usage },
 };
 
 static const struct task *
@@ -249,6 +255,50 @@ zlist(int argc, char *argv[])
 		if (zone_name(z, zonename, sizeof(zonename)) == -1)
 			err(1, "name");
 		printf("%8d %s\n", z, zonename);
+	}
+
+	free(zs);
+
+	return (0);
+}
+
+static int
+zstats(int argc, char *argv[])
+{
+	char zonename[MAXZONENAMELEN];
+	zoneid_t *zs = NULL;
+	size_t nzs, i = 8;
+	zoneid_t z;
+	struct zusage zu;
+
+	if (argc != 0)
+		zusage(zstats_usage);
+
+	for (;;) {
+		nzs = i;
+
+		zs = reallocarray(zs, nzs, sizeof(*zs));
+		if (zs == NULL)
+			err(1, "lookup");
+
+		if (zone_list(zs, &nzs) == 0)
+			break;
+
+		if (errno != EFAULT)
+			err(1, "list");
+
+		i <<= 1;
+	}
+
+	printf("%8s %s\n", "ID", "NAME");
+
+	for (i = 0; i < nzs; i++) {
+		z = zs[i];
+		if (zone_name(z, zonename, sizeof(zonename)) == -1)
+			err(1, "name");
+		if (zone_stats(z, &zu, NULL))
+			err(1, "stats");
+		printf("%8d %s %llu %llu\n", z, zonename, zu.zu_nprocs, zu.zu_utime.tv_sec);
 	}
 
 	free(zs);

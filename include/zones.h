@@ -28,6 +28,7 @@ int		zone_enter(zoneid_t);
 int		zone_list(zoneid_t *, size_t *);
 int		zone_name(zoneid_t, char *, size_t);
 zoneid_t	zone_id(const char *);
+int		zone_stats(zoneid_t, struct zusage *, size_t *);
 __END_DECLS
 
 #endif /* !_ZONES_H_ */
