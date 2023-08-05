@@ -1781,3 +1781,4 @@ zone_enter
 zone_list
 zone_name
 zone_id
+zone_stats
