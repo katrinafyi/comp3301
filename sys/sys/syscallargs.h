@@ -1175,6 +1175,12 @@ struct sys_zone_id_args {
 	syscallarg(const char *) zonename;
 };
 
+struct sys_zone_stats_args {
+	syscallarg(zoneid_t) z;
+	syscallarg(struct zusage *) zu;
+	syscallarg(size_t *) zulen;
+};
+
 /*
  * System call prototypes.
  */
@@ -1440,3 +1446,4 @@ int	sys_zone_enter(struct proc *, void *, register_t *);
 int	sys_zone_list(struct proc *, void *, register_t *);
 int	sys_zone_name(struct proc *, void *, register_t *);
 int	sys_zone_id(struct proc *, void *, register_t *);
+int	sys_zone_stats(struct proc *, void *, register_t *);

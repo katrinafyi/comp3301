@@ -23,12 +23,33 @@
 #define MAXZONES	1024
 #define MAXZONEIDS	99999
 
+struct	zusage {
+	struct timeval	zu_utime;	/* user time used */
+	struct timeval	zu_stime;	/* system time used */
+#define	zu_first	zu_minflt
+	uint64_t	zu_minflt;	/* page reclaims */
+	uint64_t	zu_majflt;	/* page faults */
+	uint64_t	zu_nswaps;	/* swaps */
+	uint64_t	zu_inblock;	/* block input operations */
+	uint64_t	zu_oublock;	/* block output operations */
+	uint64_t	zu_msgsnd;	/* messages sent */
+	uint64_t	zu_msgrcv;	/* messages received */
+	uint64_t	zu_nvcsw;	/* voluntary context switches */
+	uint64_t	zu_nivcsw;	/* involuntary context switches */
+	uint64_t	zu_enters;	/* zone_enter()s into the zone */
+	uint64_t	zu_forks;	/* processes forked in the zone */
+	uint64_t	zu_nprocs;	/* number of running processes */
+#define	zu_last		zu_nprocs
+};
+
 #ifdef _KERNEL
 void		zone_boot(void);
 int		zone_visible(struct process *, struct process *);
 struct zone *	zone_ref(struct zone *);
+struct zone *	zone_reffork(struct zone *);
 void		zone_unref(struct zone *);
 zoneid_t	zone_id(const struct zone *);
+int		zone_stats(zoneid_t z, struct zusage *zu, size_t *zulen);
 #endif
 
 #endif /* _SYS_ZONES_H_ */

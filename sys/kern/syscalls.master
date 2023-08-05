@@ -575,3 +575,4 @@
 335	STD NOLOCK	{ int sys_zone_name(zoneid_t z, \
 			    char *name, size_t namelen); }
 336	STD NOLOCK	{ zoneid_t sys_zone_id(const char *zonename); }
+337	STD 		{ int sys_zone_stats(zoneid_t z, struct zusage *zu, size_t *zulen); }

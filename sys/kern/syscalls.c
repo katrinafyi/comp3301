@@ -399,4 +399,5 @@ const char *const syscallnames[] = {
 	"zone_list",			/* 334 = zone_list */
 	"zone_name",			/* 335 = zone_name */
 	"zone_id",			/* 336 = zone_id */
+	"zone_stats",			/* 337 = zone_stats */
 };

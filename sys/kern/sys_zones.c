@@ -16,9 +16,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include "sys/resource.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/time.h>
 #include <sys/zones.h>
 
 #include <sys/socket.h>
@@ -39,6 +41,8 @@ struct zone {
 	struct refcnt	 z_refs;
 	char		*z_name;
 	size_t		 z_namelen;
+	uint64_t	 z_forks;
+	uint64_t	 z_enters;
 
 	RBT_ENTRY(zone)	 z_nm_entry;
 	RBT_ENTRY(zone)	 z_id_entry;
@@ -48,6 +52,8 @@ static struct zone zone_global = {
 	.z_id		= 0,
 	.z_refs		= REFCNT_INITIALIZER(),
 	.z_name		= "global",
+	.z_forks	= 0,
+	.z_enters	= 0,
 };
 
 struct zone * const global_zone = &zone_global;
@@ -130,6 +136,8 @@ sys_zone_create(struct proc *p, void *v, register_t *retval)
 		return (ERANGE);
 
 	refcnt_init(&zone->z_refs); /* starts at 1 */
+	zone->z_forks = 0;
+	zone->z_enters = 0;
 	zone->z_namelen = zonenamelen;
 	zone->z_name = malloc(zone->z_namelen, M_DEVBUF, M_WAITOK);
 	memcpy(zone->z_name, zonename, zone->z_namelen);
@@ -182,6 +190,17 @@ zone_ref(struct zone *zone)
 	refcnt_take(&zone->z_refs);
 	return (zone);
 }
+
+/**
+ * Perform zone_ref for a fork(2) operation, incrementing the statistics.
+ */
+struct zone *
+zone_reffork(struct zone *zone)
+{
+	zone_ref(zone)->z_forks++;
+	return (zone);
+}
+
 
 void
 zone_unref(struct zone *zone)
@@ -270,6 +289,8 @@ sys_zone_enter(struct proc *p, void *v, register_t *retval)
 		return (EPERM);
 	}
 	/* we're giving the zone_lookup ref to this process */
+
+	zone->z_enters++;
 
 	zone_unref(global_zone); /* drop gz ref */
 
@@ -439,6 +460,118 @@ sys_zone_id(struct proc *p, void *v, register_t *retval)
 	rw_exit(&zones.zs_lock);
 
 	return (rv);
+}
+
+/**
+ * Convert a single process's rusage into a partial zusage.
+ */
+void
+zone_rusage_to_zusage(const struct rusage *ru, struct zusage *zu)
+{
+	memset(zu, 0, sizeof(*zu));
+	zu->zu_utime = ru->ru_utime; 
+	zu->zu_stime = ru->ru_stime;
+
+	zu->zu_minflt = ru->ru_minflt;
+	zu->zu_majflt = ru->ru_majflt;
+	zu->zu_nswaps = ru->ru_nswap; /* typo in spec? */
+	zu->zu_inblock = ru->ru_inblock;
+	zu->zu_oublock = ru->ru_oublock;
+	zu->zu_msgsnd = ru->ru_msgsnd;
+	zu->zu_msgrcv = ru->ru_msgrcv;
+	zu->zu_nvcsw = ru->ru_nvcsw;
+	zu->zu_nivcsw = ru->ru_nivcsw;
+	zu->zu_enters = 0;
+	zu->zu_forks = 0;
+	zu->zu_nprocs = 1;
+}
+
+void
+zone_zuadd(struct zusage *zu, const struct zusage *zu2)
+{
+	timeradd(&zu2->zu_utime, &zu->zu_utime, &zu->zu_utime); 
+	timeradd(&zu2->zu_stime, &zu->zu_stime, &zu->zu_stime); 
+
+	zu->zu_minflt += zu2->zu_minflt;
+	zu->zu_majflt += zu2->zu_majflt;
+	zu->zu_nswaps += zu2->zu_nswaps;
+	zu->zu_inblock += zu2->zu_inblock;
+	zu->zu_oublock += zu2->zu_oublock;
+	zu->zu_msgsnd += zu2->zu_msgsnd;
+	zu->zu_msgrcv += zu2->zu_msgrcv;
+	zu->zu_nvcsw += zu2->zu_nvcsw;
+	zu->zu_nivcsw += zu2->zu_nivcsw;
+	zu->zu_enters += zu2->zu_enters;
+	zu->zu_forks += zu2->zu_forks;
+	zu->zu_nprocs += zu2->zu_nprocs;
+}
+
+void
+zone_zuinit(const struct zone* z, struct zusage *zu)
+{
+  memset(zu, 0, sizeof(*zu));
+  zu->zu_forks = z->z_forks;
+  zu->zu_enters = z->z_enters;
+}
+
+int
+sys_zone_stats(struct proc *p, void *v, register_t *retval)
+{
+	struct sys_zone_stats_args /* {
+	  zoneid_t z;
+	  struct zusage *zu;
+	  size_t *zulen;
+	} */ *uap = v;
+	struct zone *zone;
+	zoneid_t z;
+	int rv;
+
+	*retval = -1;
+
+	zone = p->p_p->ps_zone;
+	z = SCARG(uap, z);
+
+	/* if process is gz, we may lookup others. */
+	if (zone == global_zone) {
+		zone = zone_lookup(z);
+		if (zone == NULL)
+			return (ESRCH);
+	} else if (zone->z_id != z)
+		return (ESRCH);
+	else
+		zone_ref(zone);
+
+	/* now, zone is the one we're interested in. query it. */
+
+	struct rusage ru;
+	struct zusage zu, zu2;
+
+	struct process *pr;
+	zone_zuinit(zone, &zu);
+	LIST_FOREACH(pr, &allprocess, ps_list) {
+		if (zone != global_zone && pr->ps_zone != zone)
+			continue;
+		if (dogetrusage(TAILQ_FIRST(&pr->ps_threads), RUSAGE_SELF, &ru))
+			panic("zone_stats: dogetrusage failed");
+		zone_rusage_to_zusage(&ru, &zu2);
+		zone_zuadd(&zu, &zu2);
+	}
+	LIST_FOREACH(pr, &zombprocess, ps_list) {
+		if (zone != global_zone && pr->ps_zone != zone)
+			continue;
+		if (dogetrusage(TAILQ_FIRST(&pr->ps_threads), RUSAGE_SELF, &ru))
+			panic("zone_stats: dogetrusage failed");
+		zone_rusage_to_zusage(&ru, &zu2);
+		zone_zuadd(&zu, &zu2);
+	}
+
+	rv = copyout(&zu, SCARG(uap, zu), sizeof(zu));
+	zone_unref(zone);
+	if (rv != 0)
+		return (rv);
+
+	*retval = 0;
+	return (0);
 }
 
 RBT_GENERATE(zone_id_tree, zone, z_id_entry, zone_id_cmp);

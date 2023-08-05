@@ -260,7 +260,8 @@ process_new(struct proc *p, struct process *parent, int flags)
 	else
 		pr->ps_vmspace = uvmspace_fork(parent);
 
-	pr->ps_zone = zone_ref(parent->ps_zone);
+	/* XXX This will track kernel thread forks within the zone stats */ 
+	pr->ps_zone = zone_reffork(parent->ps_zone);
 
 	if (parent->ps_flags & PS_PROFIL)
 		startprofclock(pr);
