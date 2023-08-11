@@ -300,7 +300,6 @@ sys_zone_enter(struct proc *p, void *v, register_t *retval)
 		zoneid_t z;
 	} */ *uap = v;
 	struct zone *newzone;
-	struct zusage zu;
 
 	*retval = -1;
 	if (p->p_p->ps_zone != global_zone || suser(p) != 0)
@@ -321,6 +320,10 @@ sys_zone_enter(struct proc *p, void *v, register_t *retval)
 	 * note: the moved process's stats are counted entirely against
 	 * the new zone, even those accrued before its move.
 	 */
+
+	rw_enter_write(&newzone->z_rwlock);
+	newzone->z_contra.zu_enters++;
+	rw_exit_write(&newzone->z_rwlock);
 
 	zone_unref(global_zone); /* drop gz ref */
 
@@ -519,6 +522,7 @@ zone_zuadd(struct zusage *zu, const struct zusage *zu2)
 }
 
 
+/* XXX this will obviously not work due to unsigned integers. */
 void
 zone_zusub(struct zusage *zu, const struct zusage *zu2)
 {
@@ -600,6 +604,9 @@ sys_zone_stats(struct proc *p, void *v, register_t *retval)
 	  size_t *zulen;
 	} */ *uap = v;
 	struct zone *zone;
+	struct zusage zu, zu2;
+	struct process *pr;
+	struct processlist *prlist;
 	zoneid_t z;
 	int rv;
 
@@ -621,32 +628,24 @@ sys_zone_stats(struct proc *p, void *v, register_t *retval)
 
 	/* now, zone is the one we're interested in and we have a ref. query it. */
 
-	struct zusage zu, zu2;
 
-	struct process *pr;
 	rw_enter_write(&zone->z_rwlock);
 	zu = zone->z_contra;
 	rw_exit_write(&zone->z_rwlock);
 	KASSERT(zu.zu_nprocs == 0);
 
 	/* this is probably fast enough, since ps(1) does this internally as well */
-	LIST_FOREACH(pr, &allprocess, ps_list) {
-		if (pr->ps_flags & PS_SYSTEM)
-			continue;
-		if (zone != global_zone && pr->ps_zone != zone)
-			continue;
-		zone_getzusage(pr, &zu2);
-		zone_zuadd(&zu, &zu2);
-		zu.zu_nprocs++;
-	}
-	LIST_FOREACH(pr, &zombprocess, ps_list) {
-		if (pr->ps_flags & PS_SYSTEM)
-			continue;
-		if (zone != global_zone && pr->ps_zone != zone)
-			continue;
-		zone_getzusage(pr, &zu2);
-		zone_zuadd(&zu, &zu2);
-		zu.zu_nprocs++;
+	while (prlist != NULL) {
+		LIST_FOREACH(pr, prlist,  ps_list) {
+			if (pr->ps_flags & PS_SYSTEM)
+				continue;
+			if (zone != global_zone && pr->ps_zone != zone)
+				continue;
+			zone_getzusage(pr, &zu2);
+			zone_zuadd(&zu, &zu2);
+			zu.zu_nprocs++;
+		}
+		prlist = prlist == &allprocess ? &zombprocess : NULL;
 	}
 
 	rv = copyout(&zu, SCARG(uap, zu), sizeof(zu));
