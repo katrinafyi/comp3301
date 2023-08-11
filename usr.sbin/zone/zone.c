@@ -22,17 +22,44 @@
 #undef _KERNEL
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
 #include <err.h>
 #include <errno.h>
 #include <assert.h>
+#include <ctype.h>
 #include <zones.h>
 
 #ifndef nitems
 #define nitems(_a) (sizeof(_a) / sizeof(_a[0]))
 #endif
+
+enum column {
+	ID,
+	NAME,
+
+	UTIME,
+	STIME,
+	MINFLT,
+	MAJFLT,
+	NSWAPS,
+	INBLOCK,
+	OUBLOCK,
+	MSGSND,
+	MSGRCV,
+	NVCSW,
+	NIVCSW,
+	ENTERS,
+	FORKS,
+	NPROCS,
+
+	COL_MAX_COLUMNS,
+	COL_INVALID,
+};
+
+/* argument dispatch functions. */ 
 
 struct task {
 	const char *name;
@@ -55,7 +82,8 @@ static int	zid(int, char *[]);
 static const char zlist_usage[] = "list";
 static int	zlist(int, char *[]);
 
-static const char zstats_usage[] = "stats [-H] [-o property[,...]] [-s property] [zonename ...]";
+static const char zstats_usage[] =
+	"stats [-H] [-o property[,...]] [-s property] [zonename ...]";
 static int	zstats(int, char *[]);
 
 static const struct task tasks[] = {
@@ -221,6 +249,33 @@ zid(int argc, char *argv[])
 	return (0);
 }
 
+/*
+ * Reads the list of all visible zones, returning a newly-allocated array of
+ * the returned length. Exits on errors.
+ */
+static void
+zlist_get(zoneid_t **zs, size_t *nzs)
+{
+	*zs = NULL;
+	*nzs = 0;
+	size_t i = 8;
+	for (;;) {
+		*nzs = i;
+
+		*zs = reallocarray(*zs, *nzs, sizeof(**zs));
+		if (zs == NULL)
+			err(1, "lookup");
+
+		if (zone_list(*zs, nzs) == 0)
+			break;
+
+		if (errno != EFAULT)
+			err(1, "list");
+
+		i *= 2;
+	}
+}
+
 static int
 zlist(int argc, char *argv[])
 {
@@ -232,21 +287,7 @@ zlist(int argc, char *argv[])
 	if (argc != 0)
 		zusage(zlist_usage);
 
-	for (;;) {
-		nzs = i;
-
-		zs = reallocarray(zs, nzs, sizeof(*zs));
-		if (zs == NULL)
-			err(1, "lookup");
-
-		if (zone_list(zs, &nzs) == 0)
-			break;
-
-		if (errno != EFAULT)
-			err(1, "list");
-
-		i <<= 1;
-	}
+	zlist_get(&zs, &nzs);
 
 	printf("%8s %s\n", "ID", "NAME");
 
@@ -262,44 +303,158 @@ zlist(int argc, char *argv[])
 	return (0);
 }
 
+static const char* 
+zstats_colname(enum column col)
+{
+	switch (col) {
+	case ID:
+		return "ID";
+	case NAME:
+		return "Name";
+	case UTIME: 
+		return "UTime";
+	case STIME: 
+		return "STime";
+        case MINFLT: 
+        	return "MinFlt";
+        case MAJFLT:
+        	return "MajFlt";
+        case NSWAPS:
+        	return "Swaps";
+        case INBLOCK:
+        	return "IBlk";
+        case OUBLOCK:
+        	return "OBlk";
+        case MSGSND:
+        	return "MsgSnd";
+        case MSGRCV:
+        	return "MsgRcv";
+        case NVCSW:
+        	return "VCSw";
+        case NIVCSW:
+        	return "ICSw";
+        case FORKS:
+        	return "Forks";
+        case ENTERS:
+        	return "Enters";
+        case NPROCS:
+        	return "NProcs";
+        case COL_MAX_COLUMNS:
+        case COL_INVALID:
+        	break;
+	}
+        assert(0 <= col && col < COL_MAX_COLUMNS && "invalid enum zusage_field value.");
+        return "(invalid)";
+}
+
+static bool
+strislower(const char* str)
+{
+	for (; str[0]; str++) {
+		if (!islower(str[0]))
+			return false;
+	}
+	return true;
+}
+
+static void
+zstats_getcols(char arg[], enum column *columns)
+{
+	char *s, *last;
+	/* column index. equivalently, number of columns already given. */
+	unsigned int i;
+
+	for (i = 0; i < COL_MAX_COLUMNS; i++)
+		columns[i] = COL_INVALID;
+
+	s = strtok_r(arg, ",", &last);
+	for (i = 0; s; i++, s = strtok_r(NULL, ",", &last)) {
+		if (i >= COL_MAX_COLUMNS)
+			errx(1, "column spec exceeds maximum length of %u", COL_MAX_COLUMNS);
+
+		for (enum column c = 0; c < COL_MAX_COLUMNS; c++) {
+			const char *cname = zstats_colname(c);
+			if (strislower(s) && strcasecmp(s, cname) == 0) {
+				columns[i] = c;
+			}
+		}
+
+		if (columns[i] == COL_INVALID)
+			errx(1, "invalid column name: \"%s\"", s);
+	}
+}
+
+static void
+zstats_getopt(int *argc, char ***argv,
+		bool *headings, enum column *columns)
+{
+	/* 
+	 * unlike in main(), arguments start at 0 here. however,
+	 * getopt(3) seems to require that arguments start at index 0.
+	 * as such, decrement the argc and argv counts to fake this. :(
+	 */
+
+	*argc += 1;
+	*argv -= 1;
+
+	int ch;
+	*headings = true;
+	while ((ch = getopt(*argc, *argv, "Ho:")) != -1) {
+		switch (ch) {
+		case 'H':
+			*headings = false;
+			break;
+		case 'o':
+			zstats_getcols(optarg, columns);
+			break;
+		default:
+			zusage(zstats_usage);
+		}
+	}
+	*argc -= optind; 
+	*argv += optind;
+}
+
 static int
 zstats(int argc, char *argv[])
 {
-	char zonename[MAXZONENAMELEN];
+	size_t nzs, i;
 	zoneid_t *zs = NULL;
-	size_t nzs, i = 8;
+
+	bool hasheader = true; 
+	enum column columns[COL_MAX_COLUMNS] = {
+		ID, NAME, UTIME, STIME, MINFLT, MAJFLT, NSWAPS, INBLOCK, OUBLOCK,
+		MSGSND, MSGRCV, NVCSW, NIVCSW, FORKS, ENTERS, NPROCS
+	};
+
 	zoneid_t z;
 	struct zusage zu;
 
-	if (argc != 0)
+	zstats_getopt(&argc, &argv, &hasheader, columns);
+	if (argc != 1)
 		zusage(zstats_usage);
 
-	for (;;) {
-		nzs = i;
+	zlist_get(&zs, &nzs);
 
-		zs = reallocarray(zs, nzs, sizeof(*zs));
-		if (zs == NULL)
-			err(1, "lookup");
 
-		if (zone_list(zs, &nzs) == 0)
-			break;
-
-		if (errno != EFAULT)
-			err(1, "list");
-
-		i <<= 1;
+	if (hasheader) {
+		for (i = 0; i < COL_MAX_COLUMNS; i++) {
+			if (columns[i] == COL_INVALID)
+				continue;
+			printf("%8s", zstats_colname(columns[i]));
+		}
+		putchar('\n');
 	}
 
-	printf("%8s %s\n", "ID", "NAME");
 
-	for (i = 0; i < nzs; i++) {
-		z = zs[i];
-		if (zone_name(z, zonename, sizeof(zonename)) == -1)
-			err(1, "name");
-		if (zone_stats(z, &zu, NULL))
-			err(1, "stats");
-		printf("%8d %s %llu %llu\n", z, zonename, zu.zu_nprocs, zu.zu_utime.tv_sec);
-	}
+	// for (i = 0; i < nzs; i++) {
+	// 	z = zs[i];
+	// 	if (zone_name(z, zonename, sizeof(zonename)) == -1)
+	// 		err(1, "name");
+	// 	if (zone_stats(z, &zu, NULL))
+	// 		err(1, "stats");
+	// 	printf("%8d %s %llu %llu\n", z, zonename, zu.zu_nprocs, zu.zu_utime.tv_sec);
+	// }
 
 	free(zs);
 

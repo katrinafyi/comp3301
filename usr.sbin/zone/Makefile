@@ -1,7 +1,7 @@
 
 PROG=	zone
 SRCS=	zone.c
-CFLAGS+= -Wall
+CFLAGS+= -Wall -g
 CDIAGFLAGS=
 
 MAN=	zone.8
