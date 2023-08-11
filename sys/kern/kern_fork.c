@@ -260,8 +260,7 @@ process_new(struct proc *p, struct process *parent, int flags)
 	else
 		pr->ps_vmspace = uvmspace_fork(parent);
 
-	/* XXX This will track kernel thread forks within the zone stats */ 
-	pr->ps_zone = zone_reffork(parent->ps_zone);
+	pr->ps_zone = zone_ref(parent->ps_zone);
 
 	if (parent->ps_flags & PS_PROFIL)
 		startprofclock(pr);
@@ -423,6 +422,10 @@ fork1(struct proc *curp, int flags, void (*func)(void *), void *arg,
 	} else {
 		forkstat.cntkthread++;
 	}
+
+	/* increment the associated zone's fork counter. */
+	if (flags & (FORK_FORK | FORK_VFORK))
+		zone_addfork(pr->ps_zone);
 
 	if (pr->ps_flags & PS_TRACED && flags & FORK_FORK)
 		newptstat = malloc(sizeof(*newptstat), M_SUBPROC, M_WAITOK);

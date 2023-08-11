@@ -46,7 +46,7 @@ struct	zusage {
 void		zone_boot(void);
 int		zone_visible(struct process *, struct process *);
 struct zone *	zone_ref(struct zone *);
-struct zone *	zone_reffork(struct zone *);
+void		zone_addfork(struct zone *);
 void		zone_unref(struct zone *);
 zoneid_t	zone_id(const struct zone *);
 int		zone_stats(zoneid_t z, struct zusage *zu, size_t *zulen);

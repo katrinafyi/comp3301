@@ -22,6 +22,7 @@
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/zones.h>
+#include <sys/resourcevar.h>
 
 #include <sys/socket.h>
 #include <sys/mount.h>
@@ -36,24 +37,45 @@
 #include <sys/atomic.h>
 #include <sys/tree.h>
 
+
+/* zusage arithmetic functions. */
+void zone_zuzero(struct zusage *);
+void zone_zuadd(struct zusage *, const struct zusage *);
+void zone_zusub(struct zusage *, const struct zusage *);
+void zone_getzusage(struct process *, struct zusage *);
+
 struct zone {
 	zoneid_t	 z_id;
 	struct refcnt	 z_refs;
 	char		*z_name;
 	size_t		 z_namelen;
-	uint64_t	 z_forks;
-	uint64_t	 z_enters;
+
+	struct rwlock 	 z_rwlock;	/* lock to protect fields marked [rw]. */
+	struct zusage    z_contra;	/* [rw] contra for accurate accounting across zone_enter(2) */  
 
 	RBT_ENTRY(zone)	 z_nm_entry;
 	RBT_ENTRY(zone)	 z_id_entry;
 };
 
+/*
+ * for the interaction of z_refs and z_rwlock, we require that
+ * having a reference (i.e. z_refs incremented) is a precondition to
+ * acquiring the z_rwlock. additionally, a process must release the
+ * z_rwlock before yielding its reference (i.e. decrementing z_refs).
+ *
+ * this ensures that if z_refs is at the last reference, z_rwlock is 
+ * not locked and it is safe to delete.
+ */
+
+
 static struct zone zone_global = {
 	.z_id		= 0,
 	.z_refs		= REFCNT_INITIALIZER(),
 	.z_name		= "global",
-	.z_forks	= 0,
-	.z_enters	= 0,
+	.z_namelen	= sizeof("global"),
+
+	.z_rwlock	= RWLOCK_INITIALIZER("zone_global"),
+	.z_contra	= (struct zusage){0},
 };
 
 struct zone * const global_zone = &zone_global;
@@ -136,11 +158,12 @@ sys_zone_create(struct proc *p, void *v, register_t *retval)
 		return (ERANGE);
 
 	refcnt_init(&zone->z_refs); /* starts at 1 */
-	zone->z_forks = 0;
-	zone->z_enters = 0;
 	zone->z_namelen = zonenamelen;
 	zone->z_name = malloc(zone->z_namelen, M_DEVBUF, M_WAITOK);
 	memcpy(zone->z_name, zonename, zone->z_namelen);
+
+	rw_init(&zone->z_rwlock, zone->z_name);
+	zone_zuzero(&zone->z_contra);
 
 	rv = rw_enter(&zones.zs_lock, RW_WRITE|RW_INTR);
 	if (rv != 0)
@@ -193,12 +216,14 @@ zone_ref(struct zone *zone)
 
 /**
  * Perform zone_ref for a fork(2) operation, incrementing the statistics.
+ * The caller SHOULD have a refcnt to the zone.
  */
-struct zone *
-zone_reffork(struct zone *zone)
+void
+zone_addfork(struct zone *zone)
 {
-	zone_ref(zone)->z_forks++;
-	return (zone);
+	rw_enter_write(&zone->z_rwlock);
+	zone->z_contra.zu_forks++;
+	rw_exit_write(&zone->z_rwlock);
 }
 
 
@@ -251,6 +276,7 @@ sys_zone_destroy(struct proc *p, void *v, register_t *retval)
 		rv = EBUSY;
 		goto fail;
 	}
+	rw_assert_unlocked(&zone->z_rwlock);
 
 	RBT_REMOVE(zone_nm_tree, &zones.zs_nm_tree, zone);
 	RBT_REMOVE(zone_id_tree, &zones.zs_id_tree, zone);
@@ -273,24 +299,40 @@ sys_zone_enter(struct proc *p, void *v, register_t *retval)
 	struct sys_zone_enter_args /* {
 		zoneid_t z;
 	} */ *uap = v;
-	struct zone *zone;
+	struct zone *newzone;
+	struct zusage zu;
 
 	*retval = -1;
 	if (p->p_p->ps_zone != global_zone || suser(p) != 0)
 		return (EPERM);
 
-	zone = zone_lookup(SCARG(uap, z));
-	if (zone == NULL)
+	newzone = zone_lookup(SCARG(uap, z));
+	if (newzone == NULL)
 		return (ESRCH);
 
-	if (atomic_cas_ptr(&p->p_p->ps_zone, global_zone, zone) !=
+	if (atomic_cas_ptr(&p->p_p->ps_zone, global_zone, newzone) !=
 	    global_zone) {
-		zone_unref(zone);
+		zone_unref(newzone);
 		return (EPERM);
 	}
 	/* we're giving the zone_lookup ref to this process */
 
-	zone->z_enters++;
+	zone_getzusage(p->p_p, &zu);
+
+	/* 
+	 * the moved process's current stats are added to the global zone
+	 * and decremented from the newzone. this maintains correct bookkeeping 
+	 * because they cancel to zero.
+	 */
+	rw_enter_write(&global_zone->z_rwlock);
+	rw_enter_write(&newzone->z_rwlock);
+
+	zone_zuadd(&global_zone->z_contra, &zu);
+	newzone->z_contra.zu_enters++;
+	zone_zusub(&newzone->z_contra, &zu);
+
+	rw_exit_write(&newzone->z_rwlock);
+	rw_exit_write(&global_zone->z_rwlock);
 
 	zone_unref(global_zone); /* drop gz ref */
 
@@ -462,28 +504,10 @@ sys_zone_id(struct proc *p, void *v, register_t *retval)
 	return (rv);
 }
 
-/**
- * Convert a single process's rusage into a partial zusage.
- */
 void
-zone_rusage_to_zusage(const struct rusage *ru, struct zusage *zu)
+zone_zuzero(struct zusage *zu)
 {
 	memset(zu, 0, sizeof(*zu));
-	zu->zu_utime = ru->ru_utime; 
-	zu->zu_stime = ru->ru_stime;
-
-	zu->zu_minflt = ru->ru_minflt;
-	zu->zu_majflt = ru->ru_majflt;
-	zu->zu_nswaps = ru->ru_nswap; /* typo in spec? */
-	zu->zu_inblock = ru->ru_inblock;
-	zu->zu_oublock = ru->ru_oublock;
-	zu->zu_msgsnd = ru->ru_msgsnd;
-	zu->zu_msgrcv = ru->ru_msgrcv;
-	zu->zu_nvcsw = ru->ru_nvcsw;
-	zu->zu_nivcsw = ru->ru_nivcsw;
-	zu->zu_enters = 0;
-	zu->zu_forks = 0;
-	zu->zu_nprocs = 1;
 }
 
 void
@@ -506,12 +530,77 @@ zone_zuadd(struct zusage *zu, const struct zusage *zu2)
 	zu->zu_nprocs += zu2->zu_nprocs;
 }
 
+
 void
-zone_zuinit(const struct zone* z, struct zusage *zu)
+zone_zusub(struct zusage *zu, const struct zusage *zu2)
 {
-  memset(zu, 0, sizeof(*zu));
-  zu->zu_forks = z->z_forks;
-  zu->zu_enters = z->z_enters;
+	timersub(&zu2->zu_utime, &zu->zu_utime, &zu->zu_utime); 
+	timersub(&zu2->zu_stime, &zu->zu_stime, &zu->zu_stime); 
+
+	zu->zu_minflt -= zu2->zu_minflt;
+	zu->zu_majflt -= zu2->zu_majflt;
+	zu->zu_nswaps -= zu2->zu_nswaps;
+	zu->zu_inblock -= zu2->zu_inblock;
+	zu->zu_oublock -= zu2->zu_oublock;
+	zu->zu_msgsnd -= zu2->zu_msgsnd;
+	zu->zu_msgrcv -= zu2->zu_msgrcv;
+	zu->zu_nvcsw -= zu2->zu_nvcsw;
+	zu->zu_nivcsw -= zu2->zu_nivcsw;
+	zu->zu_enters -= zu2->zu_enters;
+	zu->zu_forks -= zu2->zu_forks;
+	zu->zu_nprocs -= zu2->zu_nprocs;
+}
+
+
+/**
+ * Convert a single process's rusage into a partial zusage (without enters and forks).
+ */
+void
+zone_rusage_to_zusage(const struct rusage *ru, struct zusage *zu)
+{
+	zone_zuzero(zu);
+	zu->zu_utime = ru->ru_utime; 
+	zu->zu_stime = ru->ru_stime;
+
+	zu->zu_minflt = ru->ru_minflt;
+	zu->zu_majflt = ru->ru_majflt;
+	zu->zu_nswaps = ru->ru_nswap; /* typo in spec? */
+	zu->zu_inblock = ru->ru_inblock;
+	zu->zu_oublock = ru->ru_oublock;
+	zu->zu_msgsnd = ru->ru_msgsnd;
+	zu->zu_msgrcv = ru->ru_msgrcv;
+	zu->zu_nvcsw = ru->ru_nvcsw;
+	zu->zu_nivcsw = ru->ru_nivcsw;
+	zu->zu_enters = 0;
+	zu->zu_forks = 0;
+	zu->zu_nprocs = 0;
+}
+
+
+void
+zone_getzusage(struct process *pr, struct zusage *zup)
+{
+	struct rusage ru;
+	struct rusage *rup = &ru;
+
+	/* the following is copied from kern_resource.c:dogetrusage */
+	struct proc *q;
+	
+	/* start with the sum of dead threads, if any */
+	if (pr->ps_ru != NULL)
+		*rup = *pr->ps_ru;
+	else
+		memset(rup, 0, sizeof(*rup));
+
+	/* add on all living threads */
+	TAILQ_FOREACH(q, &pr->ps_threads, p_thr_link) {
+		ruadd(rup, &q->p_ru);
+		tuagg(pr, q);
+	}
+
+	calcru(&pr->ps_tu, &rup->ru_utime, &rup->ru_stime, NULL);
+
+	zone_rusage_to_zusage(&ru, zup);
 }
 
 int
@@ -537,31 +626,36 @@ sys_zone_stats(struct proc *p, void *v, register_t *retval)
 		if (zone == NULL)
 			return (ESRCH);
 	} else if (zone->z_id != z)
+		/* if not global and not equal, we do not have permission. */
 		return (ESRCH);
 	else
 		zone_ref(zone);
 
-	/* now, zone is the one we're interested in. query it. */
+	/* now, zone is the one we're interested in and we have a ref. query it. */
 
 	struct rusage ru;
 	struct zusage zu, zu2;
 
 	struct process *pr;
-	zone_zuinit(zone, &zu);
+	rw_enter_write(&zone->z_rwlock);
+	zu = zone->z_contra;
+	rw_exit_write(&zone->z_rwlock);
+	/* this is probably fast enough, since ps(1) does this internally as well */
 	LIST_FOREACH(pr, &allprocess, ps_list) {
+		if (pr->ps_flags & PS_SYSTEM)
+			continue;
 		if (zone != global_zone && pr->ps_zone != zone)
 			continue;
-		if (dogetrusage(TAILQ_FIRST(&pr->ps_threads), RUSAGE_SELF, &ru))
-			panic("zone_stats: dogetrusage failed");
-		zone_rusage_to_zusage(&ru, &zu2);
+		zone_getzusage(pr, &zu2);
 		zone_zuadd(&zu, &zu2);
+		zu.zu_nprocs++;
 	}
 	LIST_FOREACH(pr, &zombprocess, ps_list) {
+		if (pr->ps_flags & PS_SYSTEM)
+			continue;
 		if (zone != global_zone && pr->ps_zone != zone)
 			continue;
-		if (dogetrusage(TAILQ_FIRST(&pr->ps_threads), RUSAGE_SELF, &ru))
-			panic("zone_stats: dogetrusage failed");
-		zone_rusage_to_zusage(&ru, &zu2);
+		zone_getzusage(pr, &zu2);
 		zone_zuadd(&zu, &zu2);
 	}
 
