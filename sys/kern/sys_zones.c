@@ -633,7 +633,6 @@ sys_zone_stats(struct proc *p, void *v, register_t *retval)
 
 	/* now, zone is the one we're interested in and we have a ref. query it. */
 
-	struct rusage ru;
 	struct zusage zu, zu2;
 
 	struct process *pr;
