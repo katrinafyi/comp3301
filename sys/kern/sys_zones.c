@@ -605,7 +605,7 @@ zone_getzusage(struct process *pr, struct zusage *zup)
 
 	calcru(&pr->ps_tu, &rup->ru_utime, &rup->ru_stime, NULL);
 
-	zone_rusage_to_zusage(&ru, zup);
+	zone_ru_to_zu(&ru, zup);
 }
 
 int
