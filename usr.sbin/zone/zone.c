@@ -36,6 +36,8 @@
 #define nitems(_a) (sizeof(_a) / sizeof(_a[0]))
 #endif
 
+#define COL_MAX_WIDTH 32
+
 enum column {
 	ID,
 	NAME,
@@ -347,6 +349,53 @@ zstats_colname(enum column col)
         return "(invalid)";
 }
 
+static void
+zstats_colval(zoneid_t id, const char *name, const struct zusage *zu,
+		enum column col, char *str, size_t len)
+{
+	if (col == ID) {
+		snprintf(str, len, "%u", id);
+	} else if (col == NAME) {
+		snprintf(str, len, "%s", name);
+	} else if (col == UTIME || col == STIME) {
+		const struct timeval *tv = col == UTIME ? &zu->zu_utime : &zu->zu_stime;
+		/* t is initially in milliseconds. */
+		unsigned long long t = 1000 * tv->tv_sec + tv->tv_usec / 1000;
+		// unsigned long long mins = t / (60 * 1000);
+		// t %= 60 * 1000;
+		unsigned long long secs = t / 1000;
+		t %= 1000;
+		unsigned msecs = t / 10;
+		snprintf(str, len, "%01llu.%03u", secs, msecs / 1000);
+        } else if (col == MINFLT) {
+        	snprintf(str, len, "%llu", zu->zu_minflt);
+        } else if (col == MAJFLT) {
+        	snprintf(str, len, "%llu", zu->zu_majflt);
+        } else if (col == NSWAPS) {
+        	snprintf(str, len, "%llu", zu->zu_nswaps);
+        } else if (col == INBLOCK) {
+        	snprintf(str, len, "%llu", zu->zu_inblock);
+        } else if (col == OUBLOCK) {
+        	snprintf(str, len, "%llu", zu->zu_oublock);
+        } else if (col == MSGSND) {
+        	snprintf(str, len, "%llu", zu->zu_msgsnd);
+        } else if (col == MSGRCV) {
+        	snprintf(str, len, "%llu", zu->zu_msgrcv);
+        } else if (col == NVCSW) {
+        	snprintf(str, len, "%llu", zu->zu_nvcsw);
+        } else if (col == NIVCSW) {
+        	snprintf(str, len, "%llu", zu->zu_nivcsw);
+        } else if (col == FORKS) {
+        	snprintf(str, len, "%llu", zu->zu_forks);
+        } else if (col == ENTERS) {
+        	snprintf(str, len, "%llu", zu->zu_enters);
+        } else if (col == NPROCS) {
+        	snprintf(str, len, "%llu", zu->zu_nprocs);
+        } else {
+        	assert(0 <= col && col < COL_MAX_COLUMNS && "invalid enum zusage_field value.");
+        }
+}
+
 static bool
 strislower(const char* str)
 {
@@ -419,42 +468,54 @@ static int
 zstats(int argc, char *argv[])
 {
 	size_t nzs, i;
-	zoneid_t *zs = NULL;
+	enum column c;
+	zoneid_t z, *zs = NULL;
+	struct zusage zu;
+	char zonename[MAXZONENAMELEN];
 
 	bool hasheader = true; 
 	enum column columns[COL_MAX_COLUMNS] = {
 		ID, NAME, UTIME, STIME, MINFLT, MAJFLT, NSWAPS, INBLOCK, OUBLOCK,
 		MSGSND, MSGRCV, NVCSW, NIVCSW, FORKS, ENTERS, NPROCS
 	};
-
-	zoneid_t z;
-	struct zusage zu;
+	char colbuffer[COL_MAX_WIDTH];
 
 	zstats_getopt(&argc, &argv, &hasheader, columns);
-	if (argc != 1)
+
+	if (argc == 0) {
+		zlist_get(&zs, &nzs);
+	} else if (argc == 1) {
+		zs = malloc(sizeof(*zs));
+		nzs = 1;
+		zs[0] = getzoneid(argv[0]);
+	} else {
 		zusage(zstats_usage);
-
-	zlist_get(&zs, &nzs);
-
+	}
 
 	if (hasheader) {
 		for (i = 0; i < COL_MAX_COLUMNS; i++) {
 			if (columns[i] == COL_INVALID)
 				continue;
-			printf("%8s", zstats_colname(columns[i]));
+			printf("%10s", zstats_colname(columns[i]));
 		}
 		putchar('\n');
 	}
 
-
-	// for (i = 0; i < nzs; i++) {
-	// 	z = zs[i];
-	// 	if (zone_name(z, zonename, sizeof(zonename)) == -1)
-	// 		err(1, "name");
-	// 	if (zone_stats(z, &zu, NULL))
-	// 		err(1, "stats");
-	// 	printf("%8d %s %llu %llu\n", z, zonename, zu.zu_nprocs, zu.zu_utime.tv_sec);
-	// }
+	for (i = 0; i < nzs; i++) {
+		z = zs[i];
+		if (zone_name(z, zonename, sizeof(zonename)) == -1)
+			err(1, "name");
+		if (zone_stats(z, &zu, NULL))
+			err(1, "stats");
+		for (c = 0; c < COL_MAX_COLUMNS; c++) {
+			if (columns[c] == COL_INVALID)
+				continue;
+			zstats_colval(z, zonename, &zu, columns[c], colbuffer, COL_MAX_WIDTH);
+			colbuffer[COL_MAX_WIDTH - 1] = 0; /* just in case :) */
+			printf("%10s", colbuffer);
+		}
+		putchar('\n');
+	}
 
 	free(zs);
 
