@@ -553,7 +553,7 @@ zone_zusub(struct zusage *zu, const struct zusage *zu2)
 
 
 /**
- * Convert a single process's rusage into a partial zusage (without enters and forks).
+ * Convert a single process's rusage into a partial zusage (without enters, forks, and nprocs).
  */
 void
 zone_rusage_to_zusage(const struct rusage *ru, struct zusage *zu)
@@ -640,6 +640,8 @@ sys_zone_stats(struct proc *p, void *v, register_t *retval)
 	rw_enter_write(&zone->z_rwlock);
 	zu = zone->z_contra;
 	rw_exit_write(&zone->z_rwlock);
+	KASSERT(zu.zu_nprocs == 0);
+
 	/* this is probably fast enough, since ps(1) does this internally as well */
 	LIST_FOREACH(pr, &allprocess, ps_list) {
 		if (pr->ps_flags & PS_SYSTEM)
