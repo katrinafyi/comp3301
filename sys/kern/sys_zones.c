@@ -42,6 +42,7 @@
 void zone_zuzero(struct zusage *);
 void zone_zuadd(struct zusage *, const struct zusage *);
 void zone_zusub(struct zusage *, const struct zusage *);
+void zone_ru_to_zu(const struct rusage *, struct zusage *);
 void zone_getzusage(struct process *, struct zusage *);
 
 struct zone {
@@ -223,6 +224,18 @@ zone_addfork(struct zone *zone)
 {
 	rw_enter_write(&zone->z_rwlock);
 	zone->z_contra.zu_forks++;
+	rw_exit_write(&zone->z_rwlock);
+}
+
+
+void
+zone_addrusage(struct zone *zone, const struct rusage *rup)
+{
+	struct zusage zu;
+	zone_ru_to_zu(rup, &zu);
+
+	rw_enter_write(&zone->z_rwlock);
+	zone_zuadd(&zone->z_contra, &zu);
 	rw_exit_write(&zone->z_rwlock);
 }
 
@@ -548,7 +561,7 @@ zone_zusub(struct zusage *zu, const struct zusage *zu2)
  * Convert a single process's rusage into a partial zusage (without enters, forks, and nprocs).
  */
 void
-zone_rusage_to_zusage(const struct rusage *ru, struct zusage *zu)
+zone_ru_to_zu(const struct rusage *ru, struct zusage *zu)
 {
 	zone_zuzero(zu);
 	zu->zu_utime = ru->ru_utime; 
@@ -635,6 +648,7 @@ sys_zone_stats(struct proc *p, void *v, register_t *retval)
 	KASSERT(zu.zu_nprocs == 0);
 
 	/* this is probably fast enough, since ps(1) does this internally as well */
+	prlist = &allprocess;
 	while (prlist != NULL) {
 		LIST_FOREACH(pr, prlist,  ps_list) {
 			if (pr->ps_flags & PS_SYSTEM)

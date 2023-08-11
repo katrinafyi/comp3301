@@ -815,8 +815,18 @@ process_zap(struct process *pr)
 	if (otvp)
 		vrele(otvp);
 
+
+	/* 
+	 * at this point, the process's threads are dead and children
+	 * dead or re-parented. this should count all its resources.
+	 */
+	if (pr->ps_ru != NULL)
+		zone_addrusage(pr->ps_zone, pr->ps_ru);
+	zone_addrusage(pr->ps_zone, &pr->ps_cru);
+
 	zone_unref(pr->ps_zone);
 	KASSERT(pr->ps_refcnt == 1);
+
 	if (pr->ps_ptstat != NULL)
 		free(pr->ps_ptstat, M_SUBPROC, sizeof(*pr->ps_ptstat));
 	pool_put(&rusage_pool, pr->ps_ru);

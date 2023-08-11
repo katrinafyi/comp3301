@@ -359,14 +359,12 @@ zstats_colval(zoneid_t id, const char *name, const struct zusage *zu,
 		snprintf(str, len, "%s", name);
 	} else if (col == UTIME || col == STIME) {
 		const struct timeval *tv = col == UTIME ? &zu->zu_utime : &zu->zu_stime;
-		/* t is initially in milliseconds. */
-		unsigned long long t = 1000 * tv->tv_sec + tv->tv_usec / 1000;
-		// unsigned long long mins = t / (60 * 1000);
-		// t %= 60 * 1000;
-		unsigned long long secs = t / 1000;
-		t %= 1000;
-		unsigned msecs = t / 10;
-		snprintf(str, len, "%01llu.%03u", secs, msecs / 1000);
+		/* t is initially in microseconds. */
+		unsigned long long t = 1000000 * tv->tv_sec + tv->tv_usec;
+		unsigned long long secs = t / 1000000;
+		t %= 1000000;
+		unsigned msecs = t / 1000;
+		snprintf(str, len, "%01llu.%03u", secs, msecs);
         } else if (col == MINFLT) {
         	snprintf(str, len, "%llu", zu->zu_minflt);
         } else if (col == MAJFLT) {
