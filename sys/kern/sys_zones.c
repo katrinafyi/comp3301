@@ -317,22 +317,10 @@ sys_zone_enter(struct proc *p, void *v, register_t *retval)
 	}
 	/* we're giving the zone_lookup ref to this process */
 
-	zone_getzusage(p->p_p, &zu);
-
 	/* 
-	 * the moved process's current stats are added to the global zone
-	 * and decremented from the newzone. this maintains correct bookkeeping 
-	 * because they cancel to zero.
+	 * note: the moved process's stats are counted entirely against
+	 * the new zone, even those accrued before its move.
 	 */
-	rw_enter_write(&global_zone->z_rwlock);
-	rw_enter_write(&newzone->z_rwlock);
-
-	zone_zuadd(&global_zone->z_contra, &zu);
-	newzone->z_contra.zu_enters++;
-	zone_zusub(&newzone->z_contra, &zu);
-
-	rw_exit_write(&newzone->z_rwlock);
-	rw_exit_write(&global_zone->z_rwlock);
 
 	zone_unref(global_zone); /* drop gz ref */
 
@@ -658,6 +646,7 @@ sys_zone_stats(struct proc *p, void *v, register_t *retval)
 			continue;
 		zone_getzusage(pr, &zu2);
 		zone_zuadd(&zu, &zu2);
+		zu.zu_nprocs++;
 	}
 
 	rv = copyout(&zu, SCARG(uap, zu), sizeof(zu));
