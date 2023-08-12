@@ -822,7 +822,6 @@ process_zap(struct process *pr)
 	 */
 	if (pr->ps_ru != NULL)
 		zone_addrusage(pr->ps_zone, pr->ps_ru);
-	zone_addrusage(pr->ps_zone, &pr->ps_cru);
 
 	zone_unref(pr->ps_zone);
 	KASSERT(pr->ps_refcnt == 1);
