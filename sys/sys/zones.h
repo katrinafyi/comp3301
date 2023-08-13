@@ -23,7 +23,7 @@
 #define MAXZONES	1024
 #define MAXZONEIDS	99999
 
-struct	zusage {
+struct	zstats {
 	struct timeval	zu_utime;	/* user time used */
 	struct timeval	zu_stime;	/* system time used */
 #define	zu_first	zu_minflt
@@ -50,7 +50,7 @@ void		zone_addfork(struct zone *);
 void		zone_addsubrusage(struct zone *, const struct rusage *, const struct rusage *);
 void		zone_unref(struct zone *);
 zoneid_t	zone_id(const struct zone *);
-int		zone_stats(zoneid_t z, struct zusage *zu, size_t *zulen);
+int		zone_stats(zoneid_t z, struct zstats *zu, size_t *zulen);
 #endif
 
 #endif /* _SYS_ZONES_H_ */

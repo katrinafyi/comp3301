@@ -350,7 +350,7 @@ zstats_colname(enum column col)
 }
 
 static void
-zstats_colval(zoneid_t id, const char *name, const struct zusage *zu,
+zstats_colval(zoneid_t id, const char *name, const struct zstats *zu,
 		enum column col, char *str, size_t len)
 {
 	if (col == ID) {
@@ -468,7 +468,7 @@ zstats(int argc, char *argv[])
 	size_t nzs, i;
 	enum column c;
 	zoneid_t z, *zs = NULL;
-	struct zusage zu;
+	struct zstats zu;
 	char zonename[MAXZONENAMELEN];
 
 	bool hasheader = true; 
@@ -503,7 +503,7 @@ zstats(int argc, char *argv[])
 		z = zs[i];
 		if (zone_name(z, zonename, sizeof(zonename)) == -1)
 			err(1, "name");
-		if (zone_stats(z, &zu, NULL))
+		if (zone_stats(z, &zu))
 			err(1, "stats");
 		for (c = 0; c < COL_MAX_COLUMNS; c++) {
 			if (columns[c] == COL_INVALID)

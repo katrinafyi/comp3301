@@ -744,7 +744,7 @@
 /* syscall: "zone_id" ret: "zoneid_t" args: "const char *" */
 #define	SYS_zone_id	336
 
-/* syscall: "zone_stats" ret: "int" args: "zoneid_t" "struct zusage *" "size_t *" */
+/* syscall: "zone_stats" ret: "int" args: "zoneid_t" "struct zstats *" */
 #define	SYS_zone_stats	337
 
 #define	SYS_MAXSYSCALL	338

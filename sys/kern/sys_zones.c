@@ -39,11 +39,11 @@
 
 
 /* zusage arithmetic functions. */
-void zone_zuzero(struct zusage *);
-void zone_zuadd(struct zusage *, const struct zusage *);
-void zone_zusub(struct zusage *, const struct zusage *);
-void zone_ru_to_zu(const struct rusage *, struct zusage *);
-void zone_getzusage(struct process *, struct zusage *);
+void zone_zuzero(struct zstats *);
+void zone_zuadd(struct zstats *, const struct zstats *);
+void zone_zusub(struct zstats *, const struct zstats *);
+void zone_ru_to_zu(const struct rusage *, struct zstats *);
+void zone_getzusage(struct process *, struct zstats *);
 
 struct zone {
 	zoneid_t	 z_id;
@@ -52,7 +52,7 @@ struct zone {
 	size_t		 z_namelen;
 
 	struct rwlock 	 z_rwlock;	/* lock to protect fields marked [rw]. */
-	struct zusage    z_contra;	/* [rw] contra for accurate accounting across zone_enter(2) */  
+	struct zstats    z_contra;	/* [rw] contra for accurate accounting across zone_enter(2) */  
 
 	RBT_ENTRY(zone)	 z_nm_entry;
 	RBT_ENTRY(zone)	 z_id_entry;
@@ -76,7 +76,7 @@ static struct zone zone_global = {
 	.z_namelen	= sizeof("global"),
 
 	.z_rwlock	= RWLOCK_INITIALIZER("zone_global"),
-	.z_contra	= (struct zusage){0},
+	.z_contra	= (struct zstats){0},
 };
 
 struct zone * const global_zone = &zone_global;
@@ -231,8 +231,8 @@ zone_addfork(struct zone *zone)
 void
 zone_addsubrusage(struct zone *zone, const struct rusage *rup, const struct rusage *srup)
 {
-	struct zusage zu = {0};
-	struct zusage szu = {0};
+	struct zstats zu = {0};
+	struct zstats szu = {0};
 	if (rup)
 		zone_ru_to_zu(rup, &zu);
 	if (srup)
@@ -514,13 +514,13 @@ sys_zone_id(struct proc *p, void *v, register_t *retval)
 }
 
 void
-zone_zuzero(struct zusage *zu)
+zone_zuzero(struct zstats *zu)
 {
 	memset(zu, 0, sizeof(*zu));
 }
 
 void
-zone_zuadd(struct zusage *zu, const struct zusage *zu2)
+zone_zuadd(struct zstats *zu, const struct zstats *zu2)
 {
 	timeradd(&zu2->zu_utime, &zu->zu_utime, &zu->zu_utime); 
 	timeradd(&zu2->zu_stime, &zu->zu_stime, &zu->zu_stime); 
@@ -542,7 +542,7 @@ zone_zuadd(struct zusage *zu, const struct zusage *zu2)
 
 /* XXX this will obviously not work due to unsigned integers. */
 void
-zone_zusub(struct zusage *zu, const struct zusage *zu2)
+zone_zusub(struct zstats *zu, const struct zstats *zu2)
 {
 	timersub(&zu->zu_utime, &zu2->zu_utime, &zu->zu_utime); 
 	timersub(&zu->zu_stime, &zu2->zu_stime, &zu->zu_stime); 
@@ -566,7 +566,7 @@ zone_zusub(struct zusage *zu, const struct zusage *zu2)
  * Convert a single process's rusage into a partial zusage (without enters, forks, and nprocs).
  */
 void
-zone_ru_to_zu(const struct rusage *ru, struct zusage *zu)
+zone_ru_to_zu(const struct rusage *ru, struct zstats *zu)
 {
 	zone_zuzero(zu);
 	zu->zu_utime = ru->ru_utime; 
@@ -588,7 +588,7 @@ zone_ru_to_zu(const struct rusage *ru, struct zusage *zu)
 
 
 void
-zone_getzusage(struct process *pr, struct zusage *zup)
+zone_getzusage(struct process *pr, struct zstats *zup)
 {
 	struct rusage ru;
 	struct rusage *rup = &ru;
@@ -618,11 +618,10 @@ sys_zone_stats(struct proc *p, void *v, register_t *retval)
 {
 	struct sys_zone_stats_args /* {
 	  zoneid_t z;
-	  struct zusage *zu;
-	  size_t *zulen;
+	  struct zstats *zu;
 	} */ *uap = v;
 	struct zone *zone;
-	struct zusage zu, zu2;
+	struct zstats zu, zu2;
 	struct process *pr;
 	struct processlist *prlist;
 	zoneid_t z;

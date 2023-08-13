@@ -1177,8 +1177,7 @@ struct sys_zone_id_args {
 
 struct sys_zone_stats_args {
 	syscallarg(zoneid_t) z;
-	syscallarg(struct zusage *) zu;
-	syscallarg(size_t *) zulen;
+	syscallarg(struct zstats *) zu;
 };
 
 /*

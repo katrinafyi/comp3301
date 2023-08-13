@@ -763,7 +763,7 @@ const struct sysent sysent[] = {
 	    sys_zone_name },			/* 335 = zone_name */
 	{ 1, s(struct sys_zone_id_args), SY_NOLOCK | 0,
 	    sys_zone_id },			/* 336 = zone_id */
-	{ 3, s(struct sys_zone_stats_args), SY_NOLOCK | 0,
+	{ 2, s(struct sys_zone_stats_args), 0,
 	    sys_zone_stats },			/* 337 = zone_stats */
 };
 
