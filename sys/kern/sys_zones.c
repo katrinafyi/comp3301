@@ -229,13 +229,18 @@ zone_addfork(struct zone *zone)
 
 
 void
-zone_addrusage(struct zone *zone, const struct rusage *rup)
+zone_addsubrusage(struct zone *zone, const struct rusage *rup, const struct rusage *srup)
 {
-	struct zusage zu;
-	zone_ru_to_zu(rup, &zu);
+	struct zusage zu = {0};
+	struct zusage szu = {0};
+	if (rup)
+		zone_ru_to_zu(rup, &zu);
+	if (srup)
+		zone_ru_to_zu(srup, &szu);
 
 	rw_enter_write(&zone->z_rwlock);
 	zone_zuadd(&zone->z_contra, &zu);
+	zone_zusub(&zone->z_contra, &szu);
 	rw_exit_write(&zone->z_rwlock);
 }
 

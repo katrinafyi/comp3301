@@ -821,7 +821,7 @@ process_zap(struct process *pr)
 	 * dead or re-parented. this should count all its resources.
 	 */
 	if (pr->ps_ru != NULL && !(pr->ps_flags & PS_SYSTEM))
-		zone_addrusage(pr->ps_zone, pr->ps_ru);
+		zone_addsubrusage(pr->ps_zone, pr->ps_ru, &pr->ps_cru);
 
 	zone_unref(pr->ps_zone);
 	KASSERT(pr->ps_refcnt == 1);
