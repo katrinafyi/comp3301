@@ -820,7 +820,7 @@ process_zap(struct process *pr)
 	 * at this point, the process's threads are dead and children
 	 * dead or re-parented. this should count all its resources.
 	 */
-	if (pr->ps_ru != NULL)
+	if (pr->ps_ru != NULL && !(pr->ps_flags & PS_SYSTEM))
 		zone_addrusage(pr->ps_zone, pr->ps_ru);
 
 	zone_unref(pr->ps_zone);
