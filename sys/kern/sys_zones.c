@@ -51,8 +51,8 @@ struct zone {
 	char		*z_name;
 	size_t		 z_namelen;
 
-	struct rwlock 	 z_rwlock;	/* lock to protect fields marked [rw]. */
-	struct zstats    z_contra;	/* [rw] contra for accurate accounting across zone_enter(2) */  
+	struct rwlock	 z_rwlock;	/* lock to protect fields with [rw]. */
+	struct zstats    z_contra;	/* [rw] stats for reaped processes. */
 
 	RBT_ENTRY(zone)	 z_nm_entry;
 	RBT_ENTRY(zone)	 z_id_entry;
@@ -64,7 +64,7 @@ struct zone {
  * acquiring the z_rwlock. additionally, a process must release the
  * z_rwlock before yielding its reference (i.e. decrementing z_refs).
  *
- * this ensures that if z_refs is at the last reference, z_rwlock is 
+ * this ensures that if z_refs is at the last reference, z_rwlock is
  * not locked and it is safe to delete.
  */
 
@@ -76,7 +76,7 @@ static struct zone zone_global = {
 	.z_namelen	= sizeof("global"),
 
 	.z_rwlock	= RWLOCK_INITIALIZER("zone_global"),
-	.z_contra	= (struct zstats){0},
+	.z_contra	= {0},
 };
 
 struct zone * const global_zone = &zone_global;
@@ -215,7 +215,7 @@ zone_ref(struct zone *zone)
 	return (zone);
 }
 
-/**
+/*
  * Perform zone_ref for a fork(2) operation, incrementing the statistics.
  * The caller SHOULD have a refcnt to the zone.
  */
@@ -229,7 +229,8 @@ zone_addfork(struct zone *zone)
 
 
 void
-zone_addsubrusage(struct zone *zone, const struct rusage *rup, const struct rusage *srup)
+zone_addsubrusage(struct zone *zone,
+    const struct rusage *rup, const struct rusage *srup)
 {
 	struct zstats zu = {0};
 	struct zstats szu = {0};
@@ -334,7 +335,7 @@ sys_zone_enter(struct proc *p, void *v, register_t *retval)
 	}
 	/* we're giving the zone_lookup ref to this process */
 
-	/* 
+	/*
 	 * note: the moved process's stats are counted entirely against
 	 * the new zone, even those accrued before its move.
 	 */
@@ -522,8 +523,8 @@ zone_zuzero(struct zstats *zu)
 void
 zone_zuadd(struct zstats *zu, const struct zstats *zu2)
 {
-	timeradd(&zu2->zu_utime, &zu->zu_utime, &zu->zu_utime); 
-	timeradd(&zu2->zu_stime, &zu->zu_stime, &zu->zu_stime); 
+	timeradd(&zu2->zu_utime, &zu->zu_utime, &zu->zu_utime);
+	timeradd(&zu2->zu_stime, &zu->zu_stime, &zu->zu_stime);
 
 	zu->zu_minflt += zu2->zu_minflt;
 	zu->zu_majflt += zu2->zu_majflt;
@@ -544,8 +545,8 @@ zone_zuadd(struct zstats *zu, const struct zstats *zu2)
 void
 zone_zusub(struct zstats *zu, const struct zstats *zu2)
 {
-	timersub(&zu->zu_utime, &zu2->zu_utime, &zu->zu_utime); 
-	timersub(&zu->zu_stime, &zu2->zu_stime, &zu->zu_stime); 
+	timersub(&zu->zu_utime, &zu2->zu_utime, &zu->zu_utime);
+	timersub(&zu->zu_stime, &zu2->zu_stime, &zu->zu_stime);
 
 	zu->zu_minflt -= zu2->zu_minflt;
 	zu->zu_majflt -= zu2->zu_majflt;
@@ -562,14 +563,15 @@ zone_zusub(struct zstats *zu, const struct zstats *zu2)
 }
 
 
-/**
- * Convert a single process's rusage into a partial zusage (without enters, forks, and nprocs).
+/*
+ * Convert a single process's rusage into a partial zusage
+ * (without enters, forks, and nprocs).
  */
 void
 zone_ru_to_zu(const struct rusage *ru, struct zstats *zu)
 {
 	zone_zuzero(zu);
-	zu->zu_utime = ru->ru_utime; 
+	zu->zu_utime = ru->ru_utime;
 	zu->zu_stime = ru->ru_stime;
 
 	zu->zu_minflt = ru->ru_minflt;
@@ -595,7 +597,7 @@ zone_getzusage(struct process *pr, struct zstats *zup)
 
 	/* the following is copied from kern_resource.c:dogetrusage */
 	struct proc *q;
-	
+
 	/* start with the sum of dead threads, if any */
 	if (pr->ps_ru != NULL)
 		*rup = *pr->ps_ru;
@@ -617,8 +619,8 @@ int
 sys_zone_stats(struct proc *p, void *v, register_t *retval)
 {
 	struct sys_zone_stats_args /* {
-	  zoneid_t z;
-	  struct zstats *zu;
+		zoneid_t z;
+		struct zstats *zu;
 	} */ *uap = v;
 	struct zone *zone;
 	struct zstats zu, zu2;
@@ -643,7 +645,7 @@ sys_zone_stats(struct proc *p, void *v, register_t *retval)
 	else
 		zone_ref(zone);
 
-	/* now, zone is the one we're interested in and we have a ref. query it. */
+	/* zone is the one we're interested in and we have a ref. query it. */
 
 
 	rw_enter_write(&zone->z_rwlock);
@@ -651,7 +653,7 @@ sys_zone_stats(struct proc *p, void *v, register_t *retval)
 	rw_exit_write(&zone->z_rwlock);
 	KASSERT(zu.zu_nprocs == 0);
 
-	/* this is probably fast enough, since ps(1) does this internally as well */
+	/* this is probably fast enough, since ps(1) does this as well */
 	prlist = &allprocess;
 	while (prlist != NULL) {
 		LIST_FOREACH(pr, prlist,  ps_list) {

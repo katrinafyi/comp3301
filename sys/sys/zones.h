@@ -19,7 +19,7 @@
 #ifndef _SYS_ZONES_H_
 #define _SYS_ZONES_H_
 
-#define MAXZONENAMELEN  256             /* max zone name length w/ NUL */
+#define MAXZONENAMELEN  256		/* max zone name length w/ NUL */
 #define MAXZONES	1024
 #define MAXZONEIDS	99999
 
@@ -47,10 +47,10 @@ void		zone_boot(void);
 int		zone_visible(struct process *, struct process *);
 struct zone *	zone_ref(struct zone *);
 void		zone_addfork(struct zone *);
-void		zone_addsubrusage(struct zone *, const struct rusage *, const struct rusage *);
+void		zone_addsubrusage(struct zone *, const struct rusage *,
+					const struct rusage *);
 void		zone_unref(struct zone *);
 zoneid_t	zone_id(const struct zone *);
-int		zone_stats(zoneid_t z, struct zstats *zu, size_t *zulen);
 #endif
 
 #endif /* _SYS_ZONES_H_ */

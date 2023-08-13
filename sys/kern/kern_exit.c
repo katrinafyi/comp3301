@@ -223,7 +223,7 @@ exit1(struct proc *p, int xexit, int xsig, int flags)
 
 	p->p_fd = NULL;		/* zap the thread's copy */
 
-        /*
+	/*
 	 * Remove proc from pidhash chain and allproc so looking
 	 * it up won't work.  We will put the proc on the
 	 * deadproc list later (using the p_hash member), and
@@ -816,11 +816,11 @@ process_zap(struct process *pr)
 		vrele(otvp);
 
 
-	/* 
+	/*
 	 * count process's "self" time into the zone's contra
-	 * accounting. we need to subtract ps_cru because the 
-	 * childrens' usage were already counted when they
-	 * were reaped.
+	 * accounting. however, ps_ru contains childrens' time
+	 * as well so we subtract this. childrens' time is
+	 * accounted by this method when they are reaped.
 	 */
 	if (pr->ps_ru != NULL && !(pr->ps_flags & PS_SYSTEM))
 		zone_addsubrusage(pr->ps_zone, pr->ps_ru, &pr->ps_cru);

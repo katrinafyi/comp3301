@@ -32,7 +32,7 @@
 #include <ctype.h>
 #include <zones.h>
 
-#ifndef nitems
+#ifndef nitem
 #define nitems(_a) (sizeof(_a) / sizeof(_a[0]))
 #endif
 
@@ -61,7 +61,7 @@ enum column {
 	COL_INVALID,
 };
 
-/* argument dispatch functions. */ 
+/* argument dispatch functions. */
 
 struct task {
 	const char *name;
@@ -81,6 +81,9 @@ static int	zexec(int, char *[]);
 static const char zid_usage[] = "id [zonename]";
 static int	zid(int, char *[]);
 
+static const char zname_usage[] = "name [id]";
+static int	zname(int, char *[]);
+
 static const char zlist_usage[] = "list";
 static int	zlist(int, char *[]);
 
@@ -94,11 +97,12 @@ static const struct task tasks[] = {
 	{ "exec",	zexec,		zexec_usage },
 	{ "list",	zlist,		zlist_usage },
 	{ "id",		zid,		zid_usage },
+	{ "name",	zname,		zname_usage },
 	{ "stats",	zstats,		zstats_usage },
 };
 
 static const struct task *
-task_lookup(const char *arg)
+	ask_lookup(const char *arg)
 {
 	const struct task *t;
 	size_t i;
@@ -251,6 +255,33 @@ zid(int argc, char *argv[])
 	return (0);
 }
 
+static int
+zname(int argc, char *argv[])
+{
+	char zonename[MAXZONENAMELEN];
+	const char *errstr;
+	zoneid_t z;
+
+	if (argc == 0) {
+		z = zone_id(NULL);
+		if (z == -1)
+			err(1, "id");
+	} else if (argc == 1) {
+		z = strtonum(argv[0], 0, MAXZONEIDS, &errstr);
+		if (errstr != NULL)
+			errx(1, "name: id %s", errstr);
+	} else {
+		zusage(zname_usage);
+	}
+
+	if (0 != zone_name(z, zonename, nitems(zonename)))
+		err(1, "name");
+
+	printf("%s\n", zonename);
+
+	return 0;
+}
+
 /*
  * Reads the list of all visible zones, returning a newly-allocated array of
  * the returned length. Exits on errors.
@@ -305,7 +336,7 @@ zlist(int argc, char *argv[])
 	return (0);
 }
 
-static const char* 
+static const char *
 zstats_colname(enum column col)
 {
 	switch (col) {
@@ -313,89 +344,92 @@ zstats_colname(enum column col)
 		return "ID";
 	case NAME:
 		return "Name";
-	case UTIME: 
+	case UTIME:
 		return "UTime";
-	case STIME: 
+	case STIME:
 		return "STime";
-        case MINFLT: 
-        	return "MinFlt";
-        case MAJFLT:
-        	return "MajFlt";
-        case NSWAPS:
-        	return "Swaps";
-        case INBLOCK:
-        	return "IBlk";
-        case OUBLOCK:
-        	return "OBlk";
-        case MSGSND:
-        	return "MsgSnd";
-        case MSGRCV:
-        	return "MsgRcv";
-        case NVCSW:
-        	return "VCSw";
-        case NIVCSW:
-        	return "ICSw";
-        case FORKS:
-        	return "Forks";
-        case ENTERS:
-        	return "Enters";
-        case NPROCS:
-        	return "NProcs";
-        case COL_MAX_COLUMNS:
-        case COL_INVALID:
-        	break;
+	case MINFLT:
+		return "MinFlt";
+	case MAJFLT:
+		return "MajFlt";
+	case NSWAPS:
+		return "Swaps";
+	case INBLOCK:
+		return "IBlk";
+	case OUBLOCK:
+		return "OBlk";
+	case MSGSND:
+		return "MsgSnd";
+	case MSGRCV:
+		return "MsgRcv";
+	case NVCSW:
+		return "VCSw";
+	case NIVCSW:
+		return "ICSw";
+	case FORKS:
+		return "Forks";
+	case ENTERS:
+		return "Enters";
+	case NPROCS:
+		return "NProcs";
+	case COL_MAX_COLUMNS:
+	case COL_INVALID:
+		break;
 	}
-        assert(0 <= col && col < COL_MAX_COLUMNS && "invalid enum zusage_field value.");
-        return "(invalid)";
+	assert(0 <= col && col < COL_MAX_COLUMNS &&
+	    "invalid enum zusage_field value.");
+	return "(invalid)";
 }
 
 static void
 zstats_colval(zoneid_t id, const char *name, const struct zstats *zu,
-		enum column col, char *str, size_t len)
+    enum column col, char *str, size_t len)
 {
 	if (col == ID) {
 		snprintf(str, len, "%u", id);
 	} else if (col == NAME) {
 		snprintf(str, len, "%s", name);
 	} else if (col == UTIME || col == STIME) {
-		const struct timeval *tv = col == UTIME ? &zu->zu_utime : &zu->zu_stime;
+		const struct timeval *tv =
+		    col == UTIME ? &zu->zu_utime : &zu->zu_stime;
 		/* t is initially in microseconds. */
 		unsigned long long t = 1000000 * tv->tv_sec + tv->tv_usec;
 		unsigned long long secs = t / 1000000;
 		t %= 1000000;
 		unsigned msecs = t / 1000;
 		snprintf(str, len, "%01llu.%03u", secs, msecs);
-        } else if (col == MINFLT) {
-        	snprintf(str, len, "%llu", zu->zu_minflt);
-        } else if (col == MAJFLT) {
-        	snprintf(str, len, "%llu", zu->zu_majflt);
-        } else if (col == NSWAPS) {
-        	snprintf(str, len, "%llu", zu->zu_nswaps);
-        } else if (col == INBLOCK) {
-        	snprintf(str, len, "%llu", zu->zu_inblock);
-        } else if (col == OUBLOCK) {
-        	snprintf(str, len, "%llu", zu->zu_oublock);
-        } else if (col == MSGSND) {
-        	snprintf(str, len, "%llu", zu->zu_msgsnd);
-        } else if (col == MSGRCV) {
-        	snprintf(str, len, "%llu", zu->zu_msgrcv);
-        } else if (col == NVCSW) {
-        	snprintf(str, len, "%llu", zu->zu_nvcsw);
-        } else if (col == NIVCSW) {
-        	snprintf(str, len, "%llu", zu->zu_nivcsw);
-        } else if (col == FORKS) {
-        	snprintf(str, len, "%llu", zu->zu_forks);
-        } else if (col == ENTERS) {
-        	snprintf(str, len, "%llu", zu->zu_enters);
-        } else if (col == NPROCS) {
-        	snprintf(str, len, "%llu", zu->zu_nprocs);
-        } else {
-        	assert(0 <= col && col < COL_MAX_COLUMNS && "invalid enum zusage_field value.");
-        }
+	} else if (col == MINFLT) {
+		snprintf(str, len, "%llu", zu->zu_minflt);
+	} else if (col == MAJFLT) {
+		snprintf(str, len, "%llu", zu->zu_majflt);
+	} else if (col == NSWAPS) {
+		snprintf(str, len, "%llu", zu->zu_nswaps);
+	} else if (col == INBLOCK) {
+		snprintf(str, len, "%llu", zu->zu_inblock);
+	} else if (col == OUBLOCK) {
+		snprintf(str, len, "%llu", zu->zu_oublock);
+	} else if (col == MSGSND) {
+		snprintf(str, len, "%llu", zu->zu_msgsnd);
+	} else if (col == MSGRCV) {
+		snprintf(str, len, "%llu", zu->zu_msgrcv);
+	} else if (col == NVCSW) {
+		snprintf(str, len, "%llu", zu->zu_nvcsw);
+	} else if (col == NIVCSW) {
+		snprintf(str, len, "%llu", zu->zu_nivcsw);
+	} else if (col == FORKS) {
+		snprintf(str, len, "%llu", zu->zu_forks);
+	} else if (col == ENTERS) {
+		snprintf(str, len, "%llu", zu->zu_enters);
+	} else if (col == NPROCS) {
+		snprintf(str, len, "%llu", zu->zu_nprocs);
+	} else {
+		assert(0 <= col && col < COL_MAX_COLUMNS &&
+		    "invalid enum zusage_field value.");
+	}
 }
 
 static bool
-strislower(const char* str)
+strislower(const char *str)
 {
 	for (; str[0]; str++) {
 		if (!islower(str[0]))
@@ -417,7 +451,8 @@ zstats_getcols(char arg[], enum column *columns)
 	s = strtok_r(arg, ",", &last);
 	for (i = 0; s; i++, s = strtok_r(NULL, ",", &last)) {
 		if (i >= COL_MAX_COLUMNS)
-			errx(1, "column spec exceeds maximum length of %u", COL_MAX_COLUMNS);
+			errx(1, "column spec exceeds maximum length of %u",
+			    COL_MAX_COLUMNS);
 
 		for (enum column c = 0; c < COL_MAX_COLUMNS; c++) {
 			const char *cname = zstats_colname(c);
@@ -433,9 +468,9 @@ zstats_getcols(char arg[], enum column *columns)
 
 static void
 zstats_getopt(int *argc, char ***argv,
-		bool *headings, enum column *columns)
+    bool *headings, enum column *columns)
 {
-	/* 
+	/*
 	 * unlike in main(), arguments start at 0 here. however,
 	 * getopt(3) seems to require that arguments start at index 0.
 	 * as such, decrement the argc and argv counts to fake this. :(
@@ -458,7 +493,7 @@ zstats_getopt(int *argc, char ***argv,
 			zusage(zstats_usage);
 		}
 	}
-	*argc -= optind; 
+	*argc -= optind;
 	*argv += optind;
 }
 
@@ -471,10 +506,10 @@ zstats(int argc, char *argv[])
 	struct zstats zu;
 	char zonename[MAXZONENAMELEN];
 
-	bool hasheader = true; 
+	bool hasheader = true;
 	enum column columns[COL_MAX_COLUMNS] = {
-		ID, NAME, UTIME, STIME, MINFLT, MAJFLT, NSWAPS, INBLOCK, OUBLOCK,
-		MSGSND, MSGRCV, NVCSW, NIVCSW, FORKS, ENTERS, NPROCS
+		ID, NAME, UTIME, STIME, MINFLT, MAJFLT, NSWAPS, INBLOCK,
+		OUBLOCK, MSGSND, MSGRCV, NVCSW, NIVCSW, FORKS, ENTERS, NPROCS
 	};
 	char colbuffer[COL_MAX_WIDTH];
 
@@ -508,7 +543,8 @@ zstats(int argc, char *argv[])
 		for (c = 0; c < COL_MAX_COLUMNS; c++) {
 			if (columns[c] == COL_INVALID)
 				continue;
-			zstats_colval(z, zonename, &zu, columns[c], colbuffer, COL_MAX_WIDTH);
+			zstats_colval(z, zonename, &zu, columns[c],
+			    colbuffer, COL_MAX_WIDTH);
 			colbuffer[COL_MAX_WIDTH - 1] = 0; /* just in case :) */
 			printf("%10s", colbuffer);
 		}
