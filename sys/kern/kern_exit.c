@@ -223,6 +223,8 @@ exit1(struct proc *p, int xexit, int xsig, int flags)
 
 	p->p_fd = NULL;		/* zap the thread's copy */
 
+	zone_addsubrusage(pr->ps_zone, &p->p_ru, NULL);
+
         /*
 	 * Remove proc from pidhash chain and allproc so looking
 	 * it up won't work.  We will put the proc on the
@@ -822,8 +824,8 @@ process_zap(struct process *pr)
 	 * childrens' usage were already counted when they
 	 * were reaped.
 	 */
-	if (pr->ps_ru != NULL && !(pr->ps_flags & PS_SYSTEM))
-		zone_addsubrusage(pr->ps_zone, pr->ps_ru, &pr->ps_cru);
+	// if (pr->ps_ru != NULL && !(pr->ps_flags & PS_SYSTEM))
+	// 	zone_addsubrusage(pr->ps_zone, pr->ps_ru, &pr->ps_cru);
 
 	zone_unref(pr->ps_zone);
 	KASSERT(pr->ps_refcnt == 1);
