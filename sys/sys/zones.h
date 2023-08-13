@@ -47,7 +47,7 @@ void		zone_boot(void);
 int		zone_visible(struct process *, struct process *);
 struct zone *	zone_ref(struct zone *);
 void		zone_addfork(struct zone *);
-void		zone_addrusage(struct zone *, const struct rusage *);
+void		zone_addsubrusage(struct zone *, const struct rusage *, const struct rusage *);
 void		zone_unref(struct zone *);
 zoneid_t	zone_id(const struct zone *);
 int		zone_stats(zoneid_t z, struct zusage *zu, size_t *zulen);

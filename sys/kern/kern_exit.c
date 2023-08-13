@@ -817,8 +817,10 @@ process_zap(struct process *pr)
 
 
 	/* 
-	 * at this point, the process's threads are dead and children
-	 * dead or re-parented. this should count all its resources.
+	 * count process's "self" time into the zone's contra
+	 * accounting. we need to subtract ps_cru because the 
+	 * childrens' usage were already counted when they
+	 * were reaped.
 	 */
 	if (pr->ps_ru != NULL && !(pr->ps_flags & PS_SYSTEM))
 		zone_addsubrusage(pr->ps_zone, pr->ps_ru, &pr->ps_cru);
