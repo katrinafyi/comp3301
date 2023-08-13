@@ -597,9 +597,9 @@ zone_getzusage(struct process *pr, struct zusage *zup)
 	struct proc *q;
 	
 	/* start with the sum of dead threads, if any */
-	// if (pr->ps_ru != NULL)
-	// 	*rup = *pr->ps_ru;
-	// else
+	if (pr->ps_ru != NULL)
+		*rup = *pr->ps_ru;
+	else
 		memset(rup, 0, sizeof(*rup));
 
 	/* add on all living threads */
