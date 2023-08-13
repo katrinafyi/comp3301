@@ -544,8 +544,8 @@ zone_zuadd(struct zusage *zu, const struct zusage *zu2)
 void
 zone_zusub(struct zusage *zu, const struct zusage *zu2)
 {
-	timersub(&zu2->zu_utime, &zu->zu_utime, &zu->zu_utime); 
-	timersub(&zu2->zu_stime, &zu->zu_stime, &zu->zu_stime); 
+	timersub(&zu->zu_utime, &zu2->zu_utime, &zu->zu_utime); 
+	timersub(&zu->zu_stime, &zu2->zu_stime, &zu->zu_stime); 
 
 	zu->zu_minflt -= zu2->zu_minflt;
 	zu->zu_majflt -= zu2->zu_majflt;
