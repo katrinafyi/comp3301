@@ -102,7 +102,7 @@ static const struct task tasks[] = {
 };
 
 static const struct task *
-	ask_lookup(const char *arg)
+task_lookup(const char *arg)
 {
 	const struct task *t;
 	size_t i;
