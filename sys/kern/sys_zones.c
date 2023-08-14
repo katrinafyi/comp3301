@@ -319,6 +319,8 @@ sys_zone_enter(struct proc *p, void *v, register_t *retval)
 		zoneid_t z;
 	} */ *uap = v;
 	struct zone *newzone;
+	struct zstats zu;
+
 
 	*retval = -1;
 	if (p->p_p->ps_zone != global_zone || suser(p) != 0)
@@ -336,13 +338,21 @@ sys_zone_enter(struct proc *p, void *v, register_t *retval)
 	/* we're giving the zone_lookup ref to this process */
 
 	/*
-	 * note: the moved process's stats are counted entirely against
-	 * the new zone, even those accrued before its move.
+	 * the moved process's stats are split between its old and new
+	 * zones with the z_contra field.
 	 */
 
+	zone_getzusage(p->p_p, &zu);
+
+	rw_enter_write(&global_zone->z_rwlock);
 	rw_enter_write(&newzone->z_rwlock);
+
+	zone_zuadd(&global_zone->z_contra, &zu);
 	newzone->z_contra.zu_enters++;
+	zone_zusub(&newzone->z_contra, &zu);
+
 	rw_exit_write(&newzone->z_rwlock);
+	rw_exit_write(&global_zone->z_rwlock);
 
 	zone_unref(global_zone); /* drop gz ref */
 
@@ -659,7 +669,7 @@ sys_zone_stats(struct proc *p, void *v, register_t *retval)
 		LIST_FOREACH(pr, prlist,  ps_list) {
 			if (pr->ps_flags & PS_SYSTEM)
 				continue;
-			if (zone != global_zone && pr->ps_zone != zone)
+			if (pr->ps_zone != zone)
 				continue;
 			zone_getzusage(pr, &zu2);
 			zone_zuadd(&zu, &zu2);
