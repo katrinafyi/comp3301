@@ -16,7 +16,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "sys/resource.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -658,10 +657,10 @@ sys_zone_stats(struct proc *p, void *v, register_t *retval)
 	/* zone is the one we're interested in and we have a ref. query it. */
 
 
-	rw_enter_write(&zone->z_rwlock);
+	rw_enter_read(&zone->z_rwlock);
 	zu = zone->z_contra;
-	rw_exit_write(&zone->z_rwlock);
-	KASSERT(zu.zu_nprocs == 0);
+	rw_exit_read(&zone->z_rwlock);
+	zu.zu_nprocs = 0;
 
 	/* this is probably fast enough, since ps(1) does this as well */
 	prlist = &allprocess;
