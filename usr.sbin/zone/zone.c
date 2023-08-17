@@ -517,12 +517,12 @@ zstats(int argc, char *argv[])
 
 	if (argc == 0) {
 		zlist_get(&zs, &nzs);
-	} else if (argc == 1) {
-		zs = malloc(sizeof(*zs));
-		nzs = 1;
-		zs[0] = getzoneid(argv[0]);
 	} else {
-		zusage(zstats_usage);
+		nzs = argc;
+		zs = calloc(nzs, sizeof(*zs));
+		for (i = 0; i < argc; i++) {
+			zs[i] = getzoneid(argv[i]);
+		}
 	}
 
 	if (hasheader) {
