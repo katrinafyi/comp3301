@@ -174,6 +174,8 @@ getzoneid(const char *zone)
 		z = strtonum(zone, 0, MAXZONEIDS, &errstr);
 		if (errstr != NULL)
 			errx(1, "unknown zone \"%s\"", zone);
+		if (0 != zone_name(z, NULL, 0) && errno != EFAULT)
+			errx(1, "unknown zone id \"%s\"", zone);
 	}
 
 	return (z);
