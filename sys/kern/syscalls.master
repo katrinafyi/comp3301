@@ -568,3 +568,5 @@
 328	OBSOL		__tfork51
 329	STD NOLOCK	{ void sys___set_tcb(void *tcb); }
 330	STD NOLOCK	{ void *sys___get_tcb(void); }
+331	STD		{ int sys_add2(uint mode, uint a, uint b, uint *result); }
+

@@ -1,4 +1,4 @@
-/*	$OpenBSD: syscallargs.h,v 1.264 2023/02/27 00:58:38 deraadt Exp $	*/
+/*	$OpenBSD$	*/
 
 /*
  * System call argument lists.
@@ -1148,6 +1148,13 @@ struct sys___set_tcb_args {
 	syscallarg(void *) tcb;
 };
 
+struct sys_add2_args {
+	syscallarg(uint) mode;
+	syscallarg(uint) a;
+	syscallarg(uint) b;
+	syscallarg(uint *) result;
+};
+
 /*
  * System call prototypes.
  */
@@ -1407,3 +1414,4 @@ int	sys_symlinkat(struct proc *, void *, register_t *);
 int	sys_unlinkat(struct proc *, void *, register_t *);
 int	sys___set_tcb(struct proc *, void *, register_t *);
 int	sys___get_tcb(struct proc *, void *, register_t *);
+int	sys_add2(struct proc *, void *, register_t *);

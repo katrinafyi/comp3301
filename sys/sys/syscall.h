@@ -1,4 +1,4 @@
-/*	$OpenBSD: syscall.h,v 1.261 2023/02/27 00:58:38 deraadt Exp $	*/
+/*	$OpenBSD$	*/
 
 /*
  * System call numbers.
@@ -726,4 +726,7 @@
 /* syscall: "__get_tcb" ret: "void *" args: */
 #define	SYS___get_tcb	330
 
-#define	SYS_MAXSYSCALL	331
+/* syscall: "add2" ret: "int" args: "uint" "uint" "uint" "uint *" */
+#define	SYS_add2	331
+
+#define	SYS_MAXSYSCALL	332
