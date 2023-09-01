@@ -16,6 +16,8 @@ static void	p4d_attach(struct device *, struct device *, void *);
 
 struct p4d_softc {
 	struct device	 sc_dev;
+	bus_space_tag_t tag;
+	bus_space_handle_t handle;
 };
 
 const struct cfattach p4d_ca = {
@@ -43,5 +45,20 @@ p4d_match(struct device *parent, void *match, void *aux)
 static void
 p4d_attach(struct device *parent, struct device *self, void *aux)
 {
-	printf(": hello world\n");
+	printf(": hello world x2 x2\n");
+	struct pci_attach_args *paa = aux;
+	struct p4d_softc *softc = (struct p4d_softc*)self;
+	pcireg_t reg_type = pci_mapreg_type(paa->pa_pc, paa->pa_tag, 0x10);
+	bus_size_t size = 0;
+
+	pci_mapreg_map(paa,
+			0x10,
+			reg_type,
+			0, 
+			&softc->tag, 
+			&softc->handle,
+			NULL, 
+			&size,
+			0);
+	printf(": hello done :3\n");
 }
