@@ -850,5 +850,10 @@ file	dev/pci/igc_phy.c		igc
 attach	com at pci with com_pci
 file	dev/pci/com_pci.c		com_pci
 
+# COMP3301 P4 device
+device	p4d
+attach	p4d at pci
+file	dev/pci/p4d.c		p4d
+
 include "dev/pci/files.agp"
 include "dev/pci/drm/files.drm"
