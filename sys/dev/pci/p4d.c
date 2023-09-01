@@ -135,8 +135,10 @@ sys_add2(struct proc *p, void *v, register_t *retval)
         bus_space_barrier(sc->tag, sc->handle, 0, 0x20,
             BUS_SPACE_BARRIER_WRITE | BUS_SPACE_BARRIER_READ);
 
-        *result = bar->sum;
+	uint sum = bar->sum;
 	mtx_leave(&sc->mutex);
+
+        copyout(&sum, result, sizeof(*result));
 
 	return 0;
 }
