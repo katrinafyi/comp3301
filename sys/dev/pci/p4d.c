@@ -130,8 +130,8 @@ sys_add2(struct proc *p, void *v, register_t *retval)
 	bar->sum = 0;
 	bus_space_barrier(sc->tag, sc->handle, 0, 0x20,
             BUS_SPACE_BARRIER_WRITE);
-	bar->a = 42;
-        bar->b = 8;
+	bar->a = a;
+        bar->b = b;
         bus_space_barrier(sc->tag, sc->handle, 0, 0x20,
             BUS_SPACE_BARRIER_WRITE | BUS_SPACE_BARRIER_READ);
 
