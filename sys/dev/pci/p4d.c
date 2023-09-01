@@ -60,5 +60,11 @@ p4d_attach(struct device *parent, struct device *self, void *aux)
 			NULL, 
 			&size,
 			0);
+	printf(": size %lx\n", size);
 	printf(": hello done :3\n");
+
+	bus_space_write_8(softc->tag, softc->handle, 0x00, 42);
+	bus_space_write_8(softc->tag, softc->handle, 0x08, 8);
+	unsigned long long v = bus_space_read_8(softc->tag, softc->handle, 0x10);
+	printf("p4d read sum = %llu\n", v);
 }
