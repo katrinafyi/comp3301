@@ -850,5 +850,10 @@ file	dev/pci/igc_phy.c		igc
 attach	com at pci with com_pci
 file	dev/pci/com_pci.c		com_pci
 
+# COMP3301 Prac 6 device
+device	p6stats
+attach	p6stats at pci
+file	dev/pci/p6stats.c		p6stats needs-flag
+
 include "dev/pci/files.agp"
 include "dev/pci/drm/files.drm"

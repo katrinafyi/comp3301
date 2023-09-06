@@ -456,6 +456,7 @@ pcscp*	at pci?				# AMD 53c974 PCscsi-PCI SCSI
 #trm*	at pci?				# Tekram DC-3x5U SCSI Controllers
 vmwpvs*	at pci?				# VMware ParaVirtual SCSI
 nvme*	at pci?				# NVMe controllers
+p6stats* at pci?			# COMP3301 P6
 
 scsibus* at scsi?
 sd*	at scsibus?			# SCSI disk drives

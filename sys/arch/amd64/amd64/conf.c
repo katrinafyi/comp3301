@@ -175,6 +175,8 @@ cdev_decl(pci);
 #include "ipmi.h"
 #include "efi.h"
 
+#include "p6stats.h"
+
 struct cdevsw	cdevsw[] =
 {
 	cdev_cn_init(1,cn),		/* 0: virtual console */
@@ -290,6 +292,7 @@ struct cdevsw	cdevsw[] =
 	cdev_fido_init(NFIDO,fido),	/* 98: FIDO/U2F security keys */
 	cdev_pppx_init(NPPPX,pppac),	/* 99: PPP Access Concentrator */
 	cdev_ujoy_init(NUJOY,ujoy),	/* 100: USB joystick/gamecontroller */
+	cdev_p6stats_init(NP6STATS,p6stats) /* 101: COMP3301 P6 */
 };
 int	nchrdev = nitems(cdevsw);
 
