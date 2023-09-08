@@ -27,6 +27,7 @@ p5dattach(int n)
 {
 	sc = malloc(sizeof(struct p5d_softc), M_DEVBUF, M_WAITOK|M_ZERO);
 	mtx_init(&sc->sc_mtx, IPL_NONE);
+	printf("attached the p5d world\n");
 }
 
 int
