@@ -502,6 +502,13 @@ extern struct cdevsw cdevsw[];
 	(dev_type_stop((*))) enodev, 0, \
 	(dev_type_mmap((*))) enodev, 0, D_CLONE }
 
+/* open, close, read, write, ioctl */
+#define	cdev_vkey_init(c,n) { \
+	dev_init(c,n,open), dev_init(c,n,close), dev_init(c,n,read), \
+	dev_init(c,n,write), dev_init(c,n,ioctl), (dev_type_stop((*))) enodev, \
+	0, (dev_type_mmap((*))) enodev, \
+	0, 0, seltrue_kqfilter }
+
 #endif
 
 /*
@@ -641,6 +648,8 @@ cdev_decl(pvbus);
 cdev_decl(ipmi);
 cdev_decl(efi);
 cdev_decl(kcov);
+
+cdev_decl(vkey);
 
 #endif
 

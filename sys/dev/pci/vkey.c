@@ -107,3 +107,41 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 fail:
 	printf(": vkey_attach failing :(\n");
 }
+
+void
+vkeyattach(int n)
+{
+	printf("vkey %d attach\n", n);
+}
+
+int
+vkeyopen(dev_t dev, int mode, int flags, struct proc *p)
+{
+	printf("vkey %d open\n", dev);
+	return (0);
+}
+
+int
+vkeyclose(dev_t dev, int flag, int mode, struct proc *p)
+{
+	printf("vkey %d close\n", dev);
+	return (0);
+}
+
+int
+vkeywrite(dev_t dev, struct uio *uio, int flags)
+{
+	return (EOPNOTSUPP);
+}
+
+int
+vkeyread(dev_t dev, struct uio *uio, int flags)
+{
+	return (EOPNOTSUPP);
+}
+
+int
+vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+{
+	return (ENXIO);
+}
