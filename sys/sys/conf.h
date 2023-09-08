@@ -180,6 +180,13 @@ extern struct cdevsw cdevsw[];
 	0, (dev_type_mmap((*))) enodev, \
 	0, 0, seltrue_kqfilter }
 
+/* open, close, read, write, ioctl */
+#define	cdev_p5d_init(c,n) { \
+	dev_init(c,n,open), dev_init(c,n,close), dev_init(c,n,read), \
+	dev_init(c,n,write), dev_init(c,n,ioctl), (dev_type_stop((*))) enodev, \
+	0, (dev_type_mmap((*))) enodev, \
+	0, 0, seltrue_kqfilter }
+
 /* open, close, read, write, ioctl, stop, tty */
 #define	cdev_tty_init(c,n) { \
 	dev_init(c,n,open), dev_init(c,n,close), dev_init(c,n,read), \
@@ -641,6 +648,8 @@ cdev_decl(pvbus);
 cdev_decl(ipmi);
 cdev_decl(efi);
 cdev_decl(kcov);
+
+cdev_decl(p5d);
 
 #endif
 
