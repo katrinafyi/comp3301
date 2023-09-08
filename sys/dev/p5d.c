@@ -8,6 +8,8 @@
 #include <sys/poll.h>
 #include <sys/malloc.h>
 
+#include <sys/p5d.h>
+
 enum p5d_flags {
 	SEND_WAITING	= (1<<0),
 };
@@ -43,6 +45,17 @@ p5dclose(dev_t dev, int flag, int mode, struct proc *p)
 int
 p5dioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
+	struct p5d_status_params *psp;
+
+	switch (cmd) {
+	case P5D_IOC_STATUS:
+		psp = (void *)data;
+		mtx_enter(&sc->sc_mtx);
+		psp->psp_is_num_waiting = sc->sc_flags & SEND_WAITING;
+		mtx_leave(&sc->sc_mtx);
+		return 0;
+	}
+
 	return (ENXIO);
 }
 
