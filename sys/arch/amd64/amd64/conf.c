@@ -289,6 +289,7 @@ struct cdevsw	cdevsw[] =
 	cdev_notdef(),			/* 97: was switch(4) */
 	cdev_fido_init(NFIDO,fido),	/* 98: FIDO/U2F security keys */
 	cdev_pppx_init(NPPPX,pppac),	/* 99: PPP Access Concentrator */
+	cdev_ujoy_init(NUJOY,ujoy),	/* 100: USB joystick/gamecontroller */
 	cdev_p5d_init(1,p5d),		/* 101: COMP3301 prac 5 */
 };
 int	nchrdev = nitems(cdevsw);
