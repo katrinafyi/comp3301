@@ -5,6 +5,7 @@
 #include <sys/ioctl.h>
 #include <sys/device.h>
 #include <sys/atomic.h>
+#include <sys/tree.h>
 
 #include <machine/bus.h>
 
@@ -15,16 +16,6 @@
 
 static int	vkey_match(struct device *, void *, void *);
 static void	vkey_attach(struct device *, struct device *, void *);
-
-struct vkey_softc {
-	struct device	 sc_dev;
-	struct {
-		bus_space_tag_t tag;
-		bus_space_handle_t handle;
-	} sc_bus[2];
-
-	struct vkey_bar0 *sc_bar0;
-};
 
 struct vkey_flags {
 	bool fltb : 1; // page fault of address from BAR
@@ -64,6 +55,92 @@ struct vkey_bar0 {
 	uint32_t dbell;
 };
 
+struct vkey_cmd_desc {
+	uint32_t _reserved0;
+	uint16_t _reserved1;
+	uint8_t type;
+	uint8_t owner;
+
+	uint32_t len2;
+	uint32_t len1;
+	uint32_t len4;
+	uint32_t len3;
+
+	uint64_t cookie;
+
+	void* ptr1;
+	void* ptr2;
+	void* ptr3;
+	void* ptr4;
+};
+
+CTASSERT(sizeof(struct vkey_cmd_desc) == 8 * sizeof(uint64_t)); 
+
+struct vkey_comp_desc {
+	uint32_t _reserved0;
+	uint16_t _reserved1;
+	uint8_t type;
+	uint8_t owner;
+
+	uint32_t _reserved2;
+	uint32_t msglen;
+
+	uint64_t cmd_cookie;
+	uint64_t reply_cookie;
+};
+
+CTASSERT(sizeof(struct vkey_comp_desc) == 4 * sizeof(uint64_t));
+
+
+struct vkey_cookie {
+	uint64_t cookie; // random cookie value
+	uint64_t time;   // creation time of this cookie
+
+	RB_ENTRY(vkey_cookie) cmd_entry;
+	RB_ENTRY(vkey_cookie) reply_entry;
+};
+
+static int vkey_cookie_cmp(struct vkey_cookie *left, struct vkey_cookie *right)
+{
+	return ((int64_t)left->cookie) - ((int64_t)right->cookie);
+};
+
+static uint64_t
+vkey_time()
+{
+	struct timeval tv;
+	getmicrouptime(&tv);
+	return tv.tv_sec;
+}
+
+RB_HEAD(cmdtree, vkey_cookie);
+RB_HEAD(replytree, vkey_cookie);
+
+RB_PROTOTYPE(cmdtree, vkey_cookie, cmd_entry, vkey_cookie_cmp);
+RB_PROTOTYPE(replytree, vkey_cookie, cmd_entry, vkey_cookie_cmp);
+RB_GENERATE(cmdtree, vkey_cookie, reply_entry, vkey_cookie_cmp);
+RB_GENERATE(replytree, vkey_cookie, reply_entry, vkey_cookie_cmp);
+
+
+struct vkey_softc {
+	struct device	 sc_dev;
+	struct {
+		bus_space_tag_t tag;
+		bus_space_handle_t handle;
+	} sc_bus[2];
+
+	struct vkey_bar0 *sc_bar0;
+
+	struct mutex sc_mtx;
+
+	struct cmdtree sc_commands;
+	struct replytree sc_replies;
+
+	volatile unsigned long sc_cookiegen;
+};
+
+// real things below here.
+
 const struct cfattach vkey_ca = {
 	.ca_devsize 	= sizeof(struct vkey_softc),
 	.ca_match 	= vkey_match,
@@ -93,7 +170,11 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	struct pci_attach_args *pa = aux;
 	printf(": attaching vkey device: bus=%d, device=%d, function=%d\n",
 			pa->pa_bus, pa->pa_device, pa->pa_function);
-	return;
+
+	mtx_init(&sc->sc_mtx, IPL_NONE);
+	RB_INIT(&sc->sc_commands);
+	RB_INIT(&sc->sc_replies);
+	sc->sc_cookiegen = 1000;
 
 	size_t size0, size1;
 	int result;
@@ -167,6 +248,56 @@ vkeyread(dev_t dev, struct uio *uio, int flags)
 	return (EOPNOTSUPP);
 }
 
+void
+vkeyioctl_cmd_new(struct vkey_softc *sc, uint64_t cook, const struct vkey_cmd *cmd)
+{
+	struct vkey_cmd_desc *desc; // XXX find next empty desc
+
+	struct vkey_cookie *cookie = malloc(sizeof(struct vkey_cookie), 0, M_NOWAIT | M_ZERO);
+	assert(cookie != NULL);
+
+	cookie->cookie = cook;
+	cookie->time = vkey_time();
+
+	mtx_enter(&sc->sc_mtx);
+	RB_INSERT(cmdtree, &sc->sc_commands, cookie);
+	mtx_leave(&sc->sc_mtx);
+
+	desc->cookie = cook;
+
+	desc->ptr1 = cmd->vkey_in[0].iov_base;
+	desc->ptr2 = cmd->vkey_in[1].iov_base;
+	desc->ptr3 = cmd->vkey_in[2].iov_base;
+	desc->ptr4 = cmd->vkey_in[3].iov_base;
+
+	desc->len1 = cmd->vkey_in[0].iov_len;
+	desc->len2 = cmd->vkey_in[1].iov_len;
+	desc->len3 = cmd->vkey_in[2].iov_len;
+	desc->len4 = cmd->vkey_in[3].iov_len;
+
+	// XXX STORE BARRIER 
+
+	// desc->owner = DEVICE_OWNER;
+
+	// XXX STORE BARRIER
+	
+	sc->sc_bar0->dbell = 0x5; // XXX index
+}
+
+int
+vkeyioctl_cmd(struct vkey_softc *sc, struct vkey_cmd *cmd)
+{
+	struct vkey_cmd_desc cmd_desc;
+	uint64_t cookie = atomic_inc_long_nv(&sc->sc_cookiegen);
+
+	vkeyioctl_cmd_new(sc, cookie, cmd);
+
+	// write to command ring
+	// wait for notification from completion interrupts
+	// read from reply ring
+	return 0;
+}
+
 int
 vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
@@ -186,7 +317,15 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		return 0;
 	case VKEYIOC_CMD:
 		printf("vkey cmd unhandled\n");
-		return 0;
+		return vkeyioctl_cmd(sc, (void *)data);
 	}
 	assert(0 && "vkeyioctl unhandled");
+}
+
+void
+msix_interrupt()
+{
+	// on receive completion
+	//  
+
 }
