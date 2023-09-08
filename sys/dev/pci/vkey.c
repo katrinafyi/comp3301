@@ -1,3 +1,4 @@
+#include "lib/libkern/libkern.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
@@ -10,6 +11,7 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcidevs.h>
+#include <dev/vkey.h>
 
 static int	vkey_match(struct device *, void *, void *);
 static void	vkey_attach(struct device *, struct device *, void *);
@@ -24,12 +26,27 @@ struct vkey_softc {
 	struct vkey_bar0 *sc_bar0;
 };
 
+struct vkey_flags {
+	bool fltb : 1; // page fault of address from BAR
+	bool fltr : 1; // page fault of address from ring
+	bool drop : 1; // dropped due to insufficient reply buffers
+	bool ovf : 1; // failed to write completion, owner or CPDBELL mismatch
+	bool seq : 1; // operation out of sequence
+	unsigned _reserved0 : 11;
+
+	bool hwerr : 1; // misc hardware error
+	unsigned _reserved : 14;
+	bool rst : 1; // writable reset trigger
+};
+
+CTASSERT(sizeof(struct vkey_flags) == sizeof(uint32_t));
+
 struct vkey_bar0 {
 	uint32_t vmin;
 	uint32_t vmaj;
 
 	uint32_t _reserved0;
-	uint32_t flags;
+	struct vkey_flags flags;
 
 	uint64_t cbase;
 	uint32_t _reserved1;
@@ -64,7 +81,7 @@ vkey_match(struct device *parent, void *match, void *aux)
 {
 	struct pci_attach_args *pa = aux;
 	if (PCI_VENDOR(pa->pa_id) == 0x3301 &&
-	    PCI_PRODUCT(pa->pa_id) == 0x0200)
+	    PCI_PRODUCT(pa->pa_id) == 1)
 		return (1);
 	return (0);
 }
@@ -76,6 +93,7 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	struct pci_attach_args *pa = aux;
 	printf(": attaching vkey device: bus=%d, device=%d, function=%d\n",
 			pa->pa_bus, pa->pa_device, pa->pa_function);
+	return;
 
 	size_t size0, size1;
 	int result;
@@ -117,8 +135,17 @@ vkeyattach(int n)
 int
 vkeyopen(dev_t dev, int mode, int flags, struct proc *p)
 {
-	printf("vkey %d open\n", dev);
+	printf("vkey %d open, %d, %d\n", dev, major(dev), minor(dev));
+	if (major(dev) != 101) goto fail;
+
+	struct vkey_softc *sc = (void *)device_lookup(&vkey_cd, minor(dev));
+	if (sc == NULL)
+		return ENXIO;
+
 	return (0);
+
+fail:
+	return EINVAL;
 }
 
 int
@@ -143,5 +170,23 @@ vkeyread(dev_t dev, struct uio *uio, int flags)
 int
 vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
-	return (ENXIO);
+	printf("vkey %d ioctl\n", dev);
+	struct vkey_info *vi;
+	struct vkey_cmd *vc;
+
+	struct vkey_softc *sc = (void *)device_lookup(&vkey_cd, minor(dev));
+	if (sc == NULL)
+		return ENXIO;
+
+	switch (cmd) {
+	case VKEYIOC_GET_INFO:
+		vi = (void *)data;
+		vi->vkey_major = sc->sc_bar0->vmaj;
+		vi->vkey_major = sc->sc_bar0->vmin;
+		return 0;
+	case VKEYIOC_CMD:
+		printf("vkey cmd unhandled\n");
+		return 0;
+	}
+	assert(0 && "vkeyioctl unhandled");
 }
