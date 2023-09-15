@@ -125,6 +125,7 @@ p6stats_attach(struct device *parent, struct device *self, void *aux)
         }
 
 	sc->sc_attached = true;
+	sc->sc_state = IDLE;
 }
 
 static struct p6stats_softc *
