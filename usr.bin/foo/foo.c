@@ -11,8 +11,8 @@
 
 int main(int argc, char** argv) {
 	int fd = open("/dev/p6stats", O_RDWR);
-	assert(fd);
-
+	assert(fd >= 0);
+	printf("fd %d\n", fd);
 
 	uint64_t ints[] = {0, 1, 2, 3, 4, 5, 6};
 	struct p6stats_calc s;
@@ -21,7 +21,9 @@ int main(int argc, char** argv) {
 
 	assert(ioctl(fd, P6STATS_IOC_CALC, &s));
 
+	for (unsigned i = 0; i < 4; i++) {
+		printf("output %u = %llu\n", i, ((uint64_t *)s.pc_output)[i]);
+	}
 
-
-	return 1;
+	return 0;
 }
