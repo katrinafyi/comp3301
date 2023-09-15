@@ -92,11 +92,14 @@ p6stats_attach(struct device *parent, struct device *self, void *aux)
 	printf(": attaching vkey device: bus=%d, device=%d, function=%d\n",
 		pa->pa_bus, pa->pa_device, pa->pa_function);
 
-	pcireg_t reg0 = pci_mapreg_type(pa->pa_pc, pa->pa_tag, 0x10);
+	pcireg_t reg0 = pci_mapreg_type(pa->pa_pc, pa->pa_tag, PCI_MAPREG_START);
 
-	result = pci_mapreg_map(pa, 0x10, reg0, BUS_SPACE_MAP_LINEAR,
+	result = pci_mapreg_map(pa, PCI_MAPREG_START, reg0, BUS_SPACE_MAP_LINEAR,
 		&sc->sc_bus.tag, &sc->sc_bus.handle, NULL, &size, 0);
-	if (!result) return;
+	if (!result) {
+		printf("map failed: %d\n", result);
+		return;
+	};
 
 	printf("mapped size=%zu", size);
 
