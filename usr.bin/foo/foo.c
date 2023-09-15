@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
 	struct p6stats_calc s;
 	struct p6stats_output o;
 	s.pc_inputs = ints;
-	s.pc_ninputs = 1;
+	s.pc_ninputs = sizeof(ints) / sizeof(ints[0]);
 	s.pc_output = &o;
 
 	ioctl(fd, P6STATS_IOC_CALC, &s);
