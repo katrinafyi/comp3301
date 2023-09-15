@@ -111,6 +111,9 @@ p6stats_attach(struct device *parent, struct device *self, void *aux)
 	result = bus_dmamap_create(pa->pa_dmat, sizeof(uint64_t) * 100, 1, sizeof(uint64_t) * 100, 0, BUS_DMA_WAITOK | BUS_DMA_ALLOCNOW | BUS_DMA_64BIT,
 			&sc->sc_in);
 	if (result) return;
+	result = bus_dmamap_create(pa->pa_dmat, sizeof(struct p6stats_output), 1, sizeof(struct p6stats_output), 0, BUS_DMA_WAITOK | BUS_DMA_ALLOCNOW | BUS_DMA_64BIT,
+			&sc->sc_out);
+	if (result) return;
 	printf("bus_dmamap_create\n");
 
 	if (pci_intr_map_msix(pa, 0, &sc->sc_intr) != 0) {
