@@ -141,7 +141,7 @@ p6stats_lookup(dev_t dev)
 	sc = p6stats_cd.cd_devs[unit];
 
 	// CHECK FOR SUCCESSFUL ATTACH
-	if (!sc->sc_attached)
+	if (!sc || !sc->sc_attached)
 		return NULL;
 
 	printf("found p6 device: %p\n", sc);
