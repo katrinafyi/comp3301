@@ -176,6 +176,7 @@ p6statsioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
 	if (cmd == P6STATS_IOC_CALC) {
 		int err;
+		printf("ioctl calc\n");
 		struct p6stats_calc *x = (void *)data;
 		struct uio in, out;
 		struct iovec inv, outv;
@@ -202,16 +203,22 @@ p6statsioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		out.uio_segflg = UIO_USERSPACE;
 		out.uio_procp = p;
 		
+		printf("ioctl uio set up\n");
 		// claim mutex before beginning dma procedure
 		mtx_enter(&sc->sc_mtx);
-		do {
+
+		// NOT do-while. if we msleep first, no-one will wake us.
+		while (sc->sc_state != IDLE) {
 			err = msleep_nsec(&sc->sc_state, &sc->sc_mtx, PRIBIO|PCATCH, "p6wait", INFSLP);
 			if (err) {
+				printf("broken during wait for idle\n");
+				wakeup(&sc->sc_state);
 				mtx_leave(&sc->sc_mtx);
 				return EIO;
 			}
-		} while (sc->sc_state != IDLE);
+		}
 
+		printf("beginning dma\n");
 		// device is idle now
 
 		bus_dmamap_load_uio(sc->sc_dma, sc->sc_in, &in, BUS_DMA_WRITE);
@@ -232,6 +239,7 @@ p6statsioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		// after writing doorbell, WAIT FOR REPLY LOL
 		sc->sc_state = WAIT;
 
+		printf("awaiting response\n");
 		// sleep until COMPLETED
 		do {
 			msleep_nsec(&sc->sc_state, &sc->sc_mtx, PRIBIO, "p6wait", INFSLP);
@@ -252,6 +260,7 @@ p6statsioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		wakeup(&sc->sc_state); /* let something else have a go */
 
 		// bus_dmamap_unload(sc->sc_dma, sc->sc_in);
+		printf("done\n");
 		mtx_leave(&sc->sc_mtx);
 
 	}
@@ -265,10 +274,13 @@ p6stats_intr(void *arg)
 	struct p6stats_softc *sc = arg;
 
 	mtx_enter(&sc->sc_mtx);
+	printf("intr: enter\n");
 	if (sc->sc_state == WAIT) {
+		printf("intr: completed\n");
 		sc->sc_state = COMPLETE;
 		wakeup(&sc->sc_state);
 	}
+	printf("intr: leave\n");
 	mtx_leave(&sc->sc_mtx);
 
 	return (1);
