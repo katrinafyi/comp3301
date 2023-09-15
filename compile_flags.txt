@@ -1,0 +1,7 @@
+-D 
+_KERNEL
+-include
+/usr/include/sys/types.h
+-include
+/usr/include/sys/time.h
+-I/usr/src/sys
