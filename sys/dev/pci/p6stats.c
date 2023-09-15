@@ -174,6 +174,7 @@ p6statsioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	assert(sc);
 
 	if (cmd == P6STATS_IOC_CALC) {
+		int err;
 		struct p6stats_calc *x = (void *)data;
 		struct uio in, out;
 		struct iovec inv, outv;
@@ -181,6 +182,7 @@ p6statsioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		inv.iov_base = x->pc_inputs;
 		inv.iov_len = x->pc_ninputs * sizeof(x->pc_inputs[0]);
 
+		in.uio_offset = 0;
 		in.uio_iov = &inv;
 		in.uio_iovcnt = 1;
 		in.uio_resid = inv.iov_len;
@@ -191,6 +193,7 @@ p6statsioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		outv.iov_base = x->pc_output;
 		outv.iov_len = sizeof(x->pc_output[0]);
 
+		out.uio_offset = 0;
 		out.uio_iov = &outv;
 		out.uio_iovcnt = 1;
 		out.uio_resid = outv.iov_len;
@@ -201,13 +204,17 @@ p6statsioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		// claim mutex before beginning dma procedure
 		mtx_enter(&sc->sc_mtx);
 		do {
-			msleep_nsec(&sc->sc_state, &sc->sc_mtx, PRIBIO, "p6wait", INFSLP);
+			err = msleep_nsec(&sc->sc_state, &sc->sc_mtx, PRIBIO|PCATCH, "p6wait", INFSLP);
+			if (err) {
+				mtx_leave(&sc->sc_mtx);
+				return EIO;
+			}
 		} while (sc->sc_state != IDLE);
 
 		// device is idle now
 
 		bus_dmamap_load_uio(sc->sc_dma, sc->sc_in, &in, BUS_DMA_WRITE);
-		bus_dmamap_load_uio(sc->sc_dma, sc->sc_in, &in, BUS_DMA_WRITE);
+		bus_dmamap_load_uio(sc->sc_dma, sc->sc_out, &out, BUS_DMA_READ);
 
 		bus_dmamap_sync(sc->sc_dma, sc->sc_in, 0, sc->sc_in->dm_segs[0].ds_len, BUS_DMASYNC_PREWRITE);
 		bus_dmamap_sync(sc->sc_dma, sc->sc_out, 0, sc->sc_out->dm_segs[0].ds_len, BUS_DMASYNC_PREREAD);
