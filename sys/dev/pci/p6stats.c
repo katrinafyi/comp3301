@@ -240,9 +240,7 @@ p6statsioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		sc->sc_state = IDLE;
 		wakeup(&sc->sc_mtx); /* let something else have a go */
 
-	unload_i:
 		bus_dmamap_unload(sc->sc_dma, sc->sc_in);
-	unlock:
 		mtx_leave(&sc->sc_mtx);
 
 	}
