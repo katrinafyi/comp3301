@@ -171,7 +171,7 @@ vkey_match(struct device *parent, void *match, void *aux)
 {
 	struct pci_attach_args *pa = aux;
 	if (PCI_VENDOR(pa->pa_id) == 0x3301 &&
-	    PCI_PRODUCT(pa->pa_id) == 1)
+	    PCI_PRODUCT(pa->pa_id) == 0x200)
 		return (1);
 	return (0);
 }
