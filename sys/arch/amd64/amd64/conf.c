@@ -290,6 +290,7 @@ struct cdevsw	cdevsw[] =
 	cdev_fido_init(NFIDO,fido),	/* 98: FIDO/U2F security keys */
 	cdev_pppx_init(NPPPX,pppac),	/* 99: PPP Access Concentrator */
 	cdev_ujoy_init(NUJOY,ujoy),	/* 100: USB joystick/gamecontroller */
+	cdev_vkey_init(1,vkey),		/* 101: COMP3301 vkey */
 };
 int	nchrdev = nitems(cdevsw);
 
