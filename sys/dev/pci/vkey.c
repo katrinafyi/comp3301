@@ -1,4 +1,3 @@
-#include "lib/libkern/libkern.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
@@ -12,7 +11,7 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcidevs.h>
-#include <dev/vkey.h>
+#include <dev/vkeyvar.h>
 
 static int	vkey_match(struct device *, void *, void *);
 static void	vkey_attach(struct device *, struct device *, void *);
@@ -55,7 +54,7 @@ struct vkey_bar0 {
 	uint32_t dbell;
 };
 
-struct vkey_cmd_desc {
+struct vkey_cmd {
 	uint32_t _reserved0;
 	uint16_t _reserved1;
 	uint8_t type;
@@ -74,9 +73,9 @@ struct vkey_cmd_desc {
 	void* ptr4;
 };
 
-CTASSERT(sizeof(struct vkey_cmd_desc) == 8 * sizeof(uint64_t)); 
+CTASSERT(sizeof(struct vkey_cmd) == 8 * sizeof(uint64_t)); 
 
-struct vkey_comp_desc {
+struct vkey_comp {
 	uint32_t _reserved0;
 	uint16_t _reserved1;
 	uint8_t type;
@@ -89,7 +88,7 @@ struct vkey_comp_desc {
 	uint64_t reply_cookie;
 };
 
-CTASSERT(sizeof(struct vkey_comp_desc) == 4 * sizeof(uint64_t));
+CTASSERT(sizeof(struct vkey_comp) == 4 * sizeof(uint64_t));
 
 
 struct vkey_cookie {
@@ -249,9 +248,9 @@ vkeyread(dev_t dev, struct uio *uio, int flags)
 }
 
 void
-vkeyioctl_cmd_new(struct vkey_softc *sc, uint64_t cook, const struct vkey_cmd *cmd)
+vkeyioctl_cmd_new(struct vkey_softc *sc, uint64_t cook, const struct vkey_cmd_arg *cmd)
 {
-	struct vkey_cmd_desc *desc; // XXX find next empty desc
+	struct vkey_cmd *desc; // XXX find next empty desc
 
 	struct vkey_cookie *cookie = malloc(sizeof(struct vkey_cookie), 0, M_NOWAIT | M_ZERO);
 	assert(cookie != NULL);
@@ -285,9 +284,9 @@ vkeyioctl_cmd_new(struct vkey_softc *sc, uint64_t cook, const struct vkey_cmd *c
 }
 
 int
-vkeyioctl_cmd(struct vkey_softc *sc, struct vkey_cmd *cmd)
+vkeyioctl_cmd(struct vkey_softc *sc, struct vkey_cmd_arg *cmd)
 {
-	struct vkey_cmd_desc cmd_desc;
+	struct vkey_cmd cmd_desc;
 	uint64_t cookie = atomic_inc_long_nv(&sc->sc_cookiegen);
 
 	vkeyioctl_cmd_new(sc, cookie, cmd);
@@ -302,7 +301,7 @@ int
 vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	printf("vkey %d ioctl\n", dev);
-	struct vkey_info *vi;
+	struct vkey_info_arg *vi;
 	struct vkey_cmd *vc;
 
 	struct vkey_softc *sc = (void *)device_lookup(&vkey_cd, minor(dev));
@@ -323,7 +322,7 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 }
 
 void
-msix_interrupt()
+vkey_intr(void *arg)
 {
 	// on receive completion
 	//  
