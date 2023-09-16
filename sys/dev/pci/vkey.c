@@ -43,38 +43,38 @@ struct vkey_flags {
 CTASSERT(sizeof(struct vkey_flags) == sizeof(uint32_t));
 
 struct vkey_bar {
-	uint32_t vmin;
 	uint32_t vmaj;
+	uint32_t vmin;
 
-	uint32_t _reserved0;
 	struct vkey_flags flags;
+	uint32_t _reserved0;
 
 	uint64_t cbase;
-	uint32_t _reserved1;
 	uint32_t cshift;
+	uint32_t _reserved1;
 
 	uint64_t rbase;
-	uint32_t _reserved2;
 	uint32_t rshift;
+	uint32_t _reserved2;
 
 	uint64_t cpbase;
-	uint32_t _reserved3;
 	uint32_t cpshift;
+	uint32_t _reserved3;
 
-	uint32_t cpdbell;
 	uint32_t dbell;
+	uint32_t cpdbell;
 };
 
 struct vkey_cmd {
-	uint32_t _reserved0;
-	uint16_t _reserved1;
-	uint8_t type;
 	uint8_t owner;
+	uint8_t type;
+	uint16_t _reserved1;
+	uint32_t _reserved0;
 
-	uint32_t len2;
 	uint32_t len1;
-	uint32_t len4;
+	uint32_t len2;
 	uint32_t len3;
+	uint32_t len4;
 
 	uint64_t cookie;
 
@@ -87,13 +87,13 @@ struct vkey_cmd {
 CTASSERT(sizeof(struct vkey_cmd) == 8 * sizeof(uint64_t)); 
 
 struct vkey_comp {
-	uint32_t _reserved0;
-	uint16_t _reserved1;
-	uint8_t type;
 	uint8_t owner;
+	uint8_t type;
+	uint16_t _reserved1;
+	uint32_t _reserved0;
 
-	uint32_t _reserved2;
 	uint32_t msglen;
+	uint32_t _reserved2;
 
 	uint64_t cmd_cookie;
 	uint64_t reply_cookie;
@@ -141,7 +141,7 @@ struct vkey_softc {
 	} sc_bus[2];
 
 	struct vkey_bar *sc_bar;
-	struct vkey_flags *sc_flags;
+	// struct vkey_flags *sc_flags;
 
 	struct mutex sc_mtx;
 
@@ -178,7 +178,7 @@ vkey_match(struct device *parent, void *match, void *aux)
 
 static bool
 vkey_check(struct vkey_softc *sc) {
-	struct vkey_flags *errs = sc->sc_flags;
+	struct vkey_flags *errs = &sc->sc_bar->flags;
 	ensure(!errs->fltb, "fault reading from bar");
 	ensure(!errs->fltr, "fault reading from ring");
 	ensure(!errs->drop, "insufficient reply buffer");
@@ -210,16 +210,18 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	int error;
 	pcireg_t reg0 = pci_mapreg_type(pa->pa_pc, pa->pa_tag, 0x10);
 	pcireg_t reg1 = pci_mapreg_type(pa->pa_pc, pa->pa_tag, 0x18);
+	(void)size1;
+	(void)reg1;
 
 	error = pci_mapreg_map(pa, 0x10, reg0, BUS_SPACE_MAP_LINEAR,
 			&sc->sc_bus[0].tag, &sc->sc_bus[0].handle, NULL, &size0, 0);
 	printf(": map0 returned %d, size=%lu\n", error, size0);
 	ensure(!error, "mapreg");
 
-	error = pci_mapreg_map(pa, 0x18, reg1, BUS_SPACE_MAP_LINEAR,
-			&sc->sc_bus[1].tag, &sc->sc_bus[1].handle, NULL, &size1, 0);
-	printf(": map1 returned %d, size=%lu\n", error, size1);
-	ensure(!error, "mapreg flags");
+	// error = pci_mapreg_map(pa, 0x18, reg1, BUS_SPACE_MAP_LINEAR,
+	// 		&sc->sc_bus[1].tag, &sc->sc_bus[1].handle, NULL, &size1, 0);
+	// printf(": map1 returned %d, size=%lu\n", error, size1);
+	// ensure(!error, "mapreg flags");
 
 	CTASSERT(sizeof(struct vkey_bar) <= 0x80);
 	ensure(size0 == 0x80, "size");
@@ -227,8 +229,8 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	sc->sc_bar = bus_space_vaddr(sc->sc_bus[0].tag, sc->sc_bus[0].handle);
 	ensure(sc->sc_bar != NULL, "vaddr sc_bar");
 
-	sc->sc_flags = bus_space_vaddr(sc->sc_bus[1].tag, sc->sc_bus[1].handle);
-	ensure(sc->sc_flags != NULL, "vaddr sc_flags");
+	// sc->sc_flags = bus_space_vaddr(sc->sc_bus[1].tag, sc->sc_bus[1].handle);
+	// ensure(sc->sc_flags != NULL, "vaddr sc_flags");
 
 	printf(": device maj=%u, min=%u\n", sc->sc_bar->vmaj, sc->sc_bar->vmin);
 	ensure(sc->sc_bar->vmaj == 1 && sc->sc_bar->vmin >= 0, "version");
