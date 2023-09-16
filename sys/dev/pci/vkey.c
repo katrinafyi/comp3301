@@ -13,6 +13,17 @@
 #include <dev/pci/pcidevs.h>
 #include <dev/vkeyvar.h>
 
+#define log(msg, ...) printf("%s:%d\t" msg "\n", __func__, __LINE__, ##__VA_ARGS__)
+
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define ensure(cond, msg, ...) do {\
+	if (!(cond)) {\
+		log("assertion `%s' failure! " msg, TOSTRING(cond), ##__VA_ARGS__);\
+		goto fail;\
+	}\
+} while (0)
+
 static int	vkey_match(struct device *, void *, void *);
 static void	vkey_attach(struct device *, struct device *, void *);
 
@@ -31,7 +42,7 @@ struct vkey_flags {
 
 CTASSERT(sizeof(struct vkey_flags) == sizeof(uint32_t));
 
-struct vkey_bar0 {
+struct vkey_bar {
 	uint32_t vmin;
 	uint32_t vmaj;
 
@@ -123,12 +134,14 @@ RB_GENERATE(replytree, vkey_cookie, reply_entry, vkey_cookie_cmp);
 
 struct vkey_softc {
 	struct device	 sc_dev;
+	bool 		 sc_attached;
 	struct {
 		bus_space_tag_t tag;
 		bus_space_handle_t handle;
 	} sc_bus[2];
 
-	struct vkey_bar0 *sc_bar0;
+	struct vkey_bar *sc_bar;
+	struct vkey_flags *sc_flags;
 
 	struct mutex sc_mtx;
 
@@ -136,6 +149,7 @@ struct vkey_softc {
 	struct replytree sc_replies;
 
 	volatile unsigned long sc_cookiegen;
+	volatile unsigned int sc_npending;
 };
 
 // real things below here.
@@ -162,10 +176,27 @@ vkey_match(struct device *parent, void *match, void *aux)
 	return (0);
 }
 
+static bool
+vkey_check(struct vkey_softc *sc) {
+	struct vkey_flags *errs = sc->sc_flags;
+	ensure(!errs->fltb, "fault reading from bar");
+	ensure(!errs->fltr, "fault reading from ring");
+	ensure(!errs->drop, "insufficient reply buffer");
+	ensure(!errs->ovf, "owner mismatch or cpdbell wrong");
+	ensure(!errs->seq, "sequencing error");
+	ensure(!errs->hwerr, "misc hardware error");
+	return true;
+fail:
+	sc->sc_attached = false;
+	return false;
+}
+
 static void
 vkey_attach(struct device *parent, struct device *self, void *aux)
 {
 	struct vkey_softc *sc = (struct vkey_softc *)self;
+	sc->sc_attached = false;
+
 	struct pci_attach_args *pa = aux;
 	printf(": attaching vkey device: bus=%d, device=%d, function=%d\n",
 			pa->pa_bus, pa->pa_device, pa->pa_function);
@@ -176,63 +207,77 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	sc->sc_cookiegen = 1000;
 
 	size_t size0, size1;
-	int result;
+	int error;
 	pcireg_t reg0 = pci_mapreg_type(pa->pa_pc, pa->pa_tag, 0x10);
 	pcireg_t reg1 = pci_mapreg_type(pa->pa_pc, pa->pa_tag, 0x18);
 
-	result = pci_mapreg_map(pa, 0x10, reg0, BUS_SPACE_MAP_LINEAR,
+	error = pci_mapreg_map(pa, 0x10, reg0, BUS_SPACE_MAP_LINEAR,
 			&sc->sc_bus[0].tag, &sc->sc_bus[0].handle, NULL, &size0, 0);
-	printf(": map0 returned %d, size=%lu\n", result, size0);
-	if (result) goto fail;
+	printf(": map0 returned %d, size=%lu\n", error, size0);
+	ensure(!error, "mapreg");
 
-	result = pci_mapreg_map(pa, 0x18, reg1, BUS_SPACE_MAP_LINEAR,
+	error = pci_mapreg_map(pa, 0x18, reg1, BUS_SPACE_MAP_LINEAR,
 			&sc->sc_bus[1].tag, &sc->sc_bus[1].handle, NULL, &size1, 0);
-	printf(": map1 returned %d, size=%lu\n", result, size1);
-	if (result) goto fail;
+	printf(": map1 returned %d, size=%lu\n", error, size1);
+	ensure(!error, "mapreg flags");
 
-	CTASSERT(sizeof(struct vkey_bar0) <= 0x80);
-	if (size0 != 0x80) goto fail;
+	CTASSERT(sizeof(struct vkey_bar) <= 0x80);
+	ensure(size0 == 0x80, "size");
 
-	sc->sc_bar0 = bus_space_vaddr(sc->sc_bus[0].tag, sc->sc_bus[0].handle);
-	if (sc->sc_bar0 == 0) goto fail;
+	sc->sc_bar = bus_space_vaddr(sc->sc_bus[0].tag, sc->sc_bus[0].handle);
+	ensure(sc->sc_bar != NULL, "vaddr sc_bar");
 
-	printf(": device maj=%u, min=%u\n", sc->sc_bar0->vmaj, sc->sc_bar0->vmin);
-	if (sc->sc_bar0->vmaj != 1 || sc->sc_bar0->vmin < 0) goto fail;
+	sc->sc_flags = bus_space_vaddr(sc->sc_bus[1].tag, sc->sc_bus[1].handle);
+	ensure(sc->sc_flags != NULL, "vaddr sc_flags");
 
+	printf(": device maj=%u, min=%u\n", sc->sc_bar->vmaj, sc->sc_bar->vmin);
+	ensure(sc->sc_bar->vmaj == 1 && sc->sc_bar->vmin >= 0, "version");
+
+	ensure(vkey_check(sc), "initial check");
 	printf(": vkey_attach success\n");
+
+	sc->sc_attached = true;
 	return;
 
 fail:
 	printf(": vkey_attach failing :(\n");
 }
 
-void
-vkeyattach(int n)
-{
-	printf("vkey %d attach\n", n);
+struct vkey_softc *
+vkey_lookup(dev_t dev) {
+	printf("vkey %d lookup, %d, %d\n", dev, major(dev), minor(dev));
+	ensure(major(dev) == 0, "major");
+
+	struct vkey_softc *sc = (void *)device_lookup(&vkey_cd, minor(dev));
+	ensure(sc && sc->sc_attached, "sc %p", sc);
+
+	return sc;
+fail:
+	return NULL;
 }
 
 int
 vkeyopen(dev_t dev, int mode, int flags, struct proc *p)
 {
-	printf("vkey %d open, %d, %d\n", dev, major(dev), minor(dev));
-	if (major(dev) != 101) goto fail;
-
-	struct vkey_softc *sc = (void *)device_lookup(&vkey_cd, minor(dev));
-	if (sc == NULL)
-		return ENXIO;
-
+	struct vkey_softc *sc = vkey_lookup(dev);
+	ensure(sc != NULL, "open");
 	return (0);
-
 fail:
-	return EINVAL;
+	return ENXIO;
 }
 
 int
 vkeyclose(dev_t dev, int flag, int mode, struct proc *p)
 {
 	printf("vkey %d close\n", dev);
+	struct vkey_softc *sc = vkey_lookup(dev);
+	ensure(sc != NULL, "close");
+
+	// XXX block for pending operations.
+
 	return (0);
+fail:
+	return ENXIO;
 }
 
 int
@@ -250,7 +295,7 @@ vkeyread(dev_t dev, struct uio *uio, int flags)
 void
 vkeyioctl_cmd_new(struct vkey_softc *sc, uint64_t cook, const struct vkey_cmd_arg *cmd)
 {
-	struct vkey_cmd *desc; // XXX find next empty desc
+	struct vkey_cmd *desc = NULL; // XXX find next empty desc
 
 	struct vkey_cookie *cookie = malloc(sizeof(struct vkey_cookie), 0, M_NOWAIT | M_ZERO);
 	assert(cookie != NULL);
@@ -280,7 +325,7 @@ vkeyioctl_cmd_new(struct vkey_softc *sc, uint64_t cook, const struct vkey_cmd_ar
 
 	// XXX STORE BARRIER
 	
-	sc->sc_bar0->dbell = 0x5; // XXX index
+	sc->sc_bar->dbell = 0x5; // XXX index
 }
 
 int
@@ -290,6 +335,8 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct vkey_cmd_arg *cmd)
 	uint64_t cookie = atomic_inc_long_nv(&sc->sc_cookiegen);
 
 	vkeyioctl_cmd_new(sc, cookie, cmd);
+
+	(void)cmd_desc;
 
 	// write to command ring
 	// wait for notification from completion interrupts
@@ -302,7 +349,6 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	printf("vkey %d ioctl\n", dev);
 	struct vkey_info_arg *vi;
-	struct vkey_cmd *vc;
 
 	struct vkey_softc *sc = (void *)device_lookup(&vkey_cd, minor(dev));
 	if (sc == NULL)
@@ -311,8 +357,8 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	switch (cmd) {
 	case VKEYIOC_GET_INFO:
 		vi = (void *)data;
-		vi->vkey_major = sc->sc_bar0->vmaj;
-		vi->vkey_major = sc->sc_bar0->vmin;
+		vi->vkey_major = sc->sc_bar->vmaj;
+		vi->vkey_major = sc->sc_bar->vmin;
 		return 0;
 	case VKEYIOC_CMD:
 		printf("vkey cmd unhandled\n");
