@@ -27,6 +27,11 @@
 static int	vkey_match(struct device *, void *, void *);
 static void	vkey_attach(struct device *, struct device *, void *);
 
+enum vkey_owner {
+	DEVICE = 0xAA,
+	HOST = 0x55,
+};
+
 struct vkey_flags {
 	bool fltb : 1; // page fault of address from BAR
 	bool fltr : 1; // page fault of address from ring
@@ -84,6 +89,7 @@ struct vkey_cmd {
 	void* ptr4;
 };
 
+
 CTASSERT(sizeof(struct vkey_cmd) == 8 * sizeof(uint64_t)); 
 
 struct vkey_comp {
@@ -131,6 +137,22 @@ RB_PROTOTYPE(replytree, vkey_cookie, cmd_entry, vkey_cookie_cmp);
 RB_GENERATE(cmdtree, vkey_cookie, reply_entry, vkey_cookie_cmp);
 RB_GENERATE(replytree, vkey_cookie, reply_entry, vkey_cookie_cmp);
 
+struct vkey_dma {
+	unsigned count;
+	size_t esize;
+	size_t size;
+
+	enum vkey_owner *ownerlist; // in attach
+
+	bus_dmamap_t map; // in attach
+	bus_dma_segment_t seg; // in open
+	union {
+		struct vkey_cmd *cmds;
+		struct vkey_cmd *replies;
+		struct vkey_comp *comps;
+		char *addr;
+	} ptr; // in open
+};
 
 struct vkey_softc {
 	struct device	 sc_dev;
@@ -150,6 +172,13 @@ struct vkey_softc {
 
 	volatile unsigned long sc_cookiegen;
 	volatile unsigned int sc_npending;
+
+	bus_dma_tag_t sc_dmat;
+	struct {
+		struct vkey_dma cmd;
+		struct vkey_dma reply;
+		struct vkey_dma comp;
+	} sc_dma;
 };
 
 // real things below here.
@@ -176,7 +205,7 @@ vkey_match(struct device *parent, void *match, void *aux)
 	return (0);
 }
 
-static bool
+bool
 vkey_check(struct vkey_softc *sc) {
 	struct vkey_flags *errs = &sc->sc_bar->flags;
 	ensure(!errs->fltb, "fault reading from bar");
@@ -191,17 +220,83 @@ fail:
 	return false;
 }
 
+const unsigned shift = 6;
+const unsigned count = 1 << shift;
+
+bool
+vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, size_t size, enum vkey_owner owner) {
+	int error;
+
+	dma->count = count;
+	dma->esize = size;
+	dma->size = count * size;
+	dma->ownerlist = malloc(count * sizeof(enum vkey_owner), 0, M_NOWAIT);
+	ensure(dma->ownerlist, "malloc");
+
+	for (unsigned i = 0; i < count; i++)
+		dma->ownerlist[i] = owner;
+
+	error = bus_dmamap_create(sc->sc_dmat, dma->size,
+			1, dma->size, 0, 
+			BUS_DMA_WAITOK | BUS_DMA_ALLOCNOW | BUS_DMA_64BIT,
+			&dma->map);
+	ensure(!error, "dmamap %s", name);
+
+	int nsegs;
+	ensure(dma->ptr.addr == NULL, "double assignment");
+	error = bus_dmamem_alloc(sc->sc_dmat, dma->size, 0, 0, &dma->seg, 1, &nsegs, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	ensure(!error, "dmamem alloc");
+	ensure(nsegs == 1, "dmamem alloc");
+
+	error = bus_dmamem_map(sc->sc_dmat, &dma->seg, 1, dma->size, &dma->ptr.addr, BUS_DMA_WAITOK);
+	ensure(!error && dma->ptr.addr, "dmamem map");
+
+	error = bus_dmamap_load(sc->sc_dmat, dma->map, dma->ptr.addr, dma->size, NULL, BUS_DMA_WAITOK);
+	ensure(!error, "dmamap load");
+
+	log("ring allocated for %s of %zu size at %p", name, dma->size, dma->ptr.addr);
+
+	return true;
+fail:
+	return false;
+}
+
+bool
+vkey_rings(struct vkey_softc *sc) {
+	ensure(vkey_ring_init(sc, "cmd", &sc->sc_dma.cmd, sizeof(struct vkey_cmd), HOST), "cmd");
+	ensure(vkey_ring_init(sc, "reply", &sc->sc_dma.reply, sizeof(struct vkey_cmd), HOST), "reply");
+	ensure(vkey_ring_init(sc, "comp", &sc->sc_dma.comp, sizeof(struct vkey_comp), DEVICE), "comp");
+
+	for (unsigned i = 0; i < sc->sc_dma.cmd.count; i++) {
+		sc->sc_dma.cmd.ptr.cmds[i].owner = HOST;
+		sc->sc_dma.reply.ptr.replies[i].owner = HOST;
+		sc->sc_dma.comp.ptr.comps[i].owner = DEVICE;
+	}
+
+	return true;
+fail:
+	return false;
+}
+
+void
+vkey_bar_barrier(struct vkey_softc *sc, int barriers) {
+	bus_space_barrier(sc->sc_bus[0].tag, sc->sc_bus[0].handle, 0,
+	    sizeof(struct vkey_bar), barriers);
+}
+
+
 static void
 vkey_attach(struct device *parent, struct device *self, void *aux)
 {
 	struct vkey_softc *sc = (struct vkey_softc *)self;
 	sc->sc_attached = false;
+	memset(&sc->sc_dma, 0, sizeof(sc->sc_dma));
 
 	struct pci_attach_args *pa = aux;
 	printf(": attaching vkey device: bus=%d, device=%d, function=%d\n",
 			pa->pa_bus, pa->pa_device, pa->pa_function);
 
-	mtx_init(&sc->sc_mtx, IPL_NONE);
+	mtx_init(&sc->sc_mtx, IPL_BIO);
 	RB_INIT(&sc->sc_commands);
 	RB_INIT(&sc->sc_replies);
 	sc->sc_cookiegen = 1000;
@@ -235,6 +330,18 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	printf(": device maj=%u, min=%u\n", sc->sc_bar->vmaj, sc->sc_bar->vmin);
 	ensure(sc->sc_bar->vmaj == 1 && sc->sc_bar->vmin >= 0, "version");
 
+	sc->sc_dmat = pa->pa_dmat;
+	// XXX allocate rings
+	ensure(vkey_rings(sc), "rings");
+
+	sc->sc_bar->cbase = (uint64_t)sc->sc_dma.cmd.ptr.addr;
+	sc->sc_bar->cshift = shift;
+	sc->sc_bar->rbase = (uint64_t)sc->sc_dma.reply.ptr.addr;
+	sc->sc_bar->rshift = shift;
+	sc->sc_bar->cpbase = (uint64_t)sc->sc_dma.comp.ptr.addr;
+	sc->sc_bar->cpshift = shift;
+	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+
 	ensure(vkey_check(sc), "initial check");
 	printf(": vkey_attach success\n");
 
@@ -262,7 +369,8 @@ int
 vkeyopen(dev_t dev, int mode, int flags, struct proc *p)
 {
 	struct vkey_softc *sc = vkey_lookup(dev);
-	ensure(sc != NULL, "open");
+	ensure(sc, "open");
+
 	return (0);
 fail:
 	return ENXIO;
@@ -279,7 +387,7 @@ vkeyclose(dev_t dev, int flag, int mode, struct proc *p)
 
 	return (0);
 fail:
-	return ENXIO;
+	return 0; // "must not return error."
 }
 
 int
