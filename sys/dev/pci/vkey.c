@@ -230,7 +230,7 @@ vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, si
 	dma->count = count;
 	dma->esize = size;
 	dma->size = count * size;
-	dma->ownerlist = malloc(count * sizeof(enum vkey_owner), 0, M_NOWAIT);
+	dma->ownerlist = malloc(count * sizeof(enum vkey_owner), M_DEVBUF, M_NOWAIT);
 	ensure(dma->ownerlist, "malloc");
 
 	for (unsigned i = 0; i < count; i++)
