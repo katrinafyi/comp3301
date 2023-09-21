@@ -276,7 +276,7 @@ const unsigned count = 1 << shift; // ring size
 bool
 vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, size_t descsize) {
 	int error;
-	bool created = false, alloced = false, mapped = false;
+	bool created = false, alloced = false, mapped = false, loaded = false;
 
 	dma->count = count;
 	dma->esize = descsize;
@@ -300,14 +300,15 @@ vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, si
 	error = bus_dmamem_map(sc->sc_dmat, dma->seg, 1, size, &dma->ptr.addr, BUS_DMA_WAITOK);
 	ensure2(mapped, !error && dma->ptr.addr, "dmamem map");
 
-	// error = bus_dmamap_load(sc->sc_dmat, map, dma->ptr.addr, map->dm_mapsize, NULL, BUS_DMA_WAITOK);
-	// ensure2(loaded, !error, "dmamap load");
+	error = bus_dmamap_load(sc->sc_dmat, map, dma->ptr.addr, size, NULL, BUS_DMA_WAITOK);
+	ensure2(loaded, !error, "dmamap load");
+	ensure(map->dm_mapsize == size, "mapsize");
 
-	log("ring allocated for %s of %zu size at %p", name, map->dm_mapsize, dma->ptr.addr);
+	log("ring allocated for %s of size %zu at kaddr %p and paddr %p", name, size, dma->ptr.addr, map->dm_segs);
 
 	return true;
 fail:
-	// if (loaded) bus_dmamap_unload(sc->sc_dmat, map);
+	if (loaded) bus_dmamap_unload(sc->sc_dmat, map);
 	if (mapped) bus_dmamem_unmap(sc->sc_dmat, dma->ptr.addr, map->dm_mapsize);
 	if (alloced) bus_dmamem_free(sc->sc_dmat, map->dm_segs, map->dm_nsegs);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, map);
@@ -427,11 +428,11 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	vkey_dmamap_sync(sc, REPLY, -1, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	vkey_dmamap_sync(sc, COMP, -1, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	sc->sc_bar->cbase = (uint64_t)sc->sc_dma.cmd.ptr.addr;
+	sc->sc_bar->cbase = (uint64_t)sc->sc_dma.cmd.map->dm_segs;
 	sc->sc_bar->cshift = shift;
-	sc->sc_bar->rbase = (uint64_t)sc->sc_dma.reply.ptr.addr;
+	sc->sc_bar->rbase = (uint64_t)sc->sc_dma.reply.map->dm_segs;
 	sc->sc_bar->rshift = shift;
-	sc->sc_bar->cpbase = (uint64_t)sc->sc_dma.comp.ptr.addr;
+	sc->sc_bar->cpbase = (uint64_t)sc->sc_dma.comp.map->dm_segs;
 	sc->sc_bar->cpshift = shift;
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 
