@@ -270,6 +270,37 @@ fail:
 	return false;
 }
 
+
+struct vkey_dma *
+vkey_dma(struct vkey_softc *sc, enum vkey_ring ring)
+{
+	switch (ring) {
+		case CMD:
+			return &sc->sc_dma.cmd;
+		case REPLY:
+			return &sc->sc_dma.reply;
+		case COMP:
+			return &sc->sc_dma.comp;
+	}
+}
+
+void
+vkey_dmamap_sync(struct vkey_softc *sc, enum vkey_ring ring, long index, int syncs)
+{
+	size_t size;
+	struct vkey_dma *dma = vkey_dma(sc, ring);
+	if (index < 0) {
+		index = 0;
+		size = dma->map->dm_mapsize;
+	} else {
+		size = ring != COMP ? sizeof(struct vkey_cmd) : sizeof(struct vkey_comp);
+		index *= size;
+	}
+
+	bus_dmamap_sync(sc->sc_dmat, dma->map, index, size, syncs);
+}
+
+
 const unsigned shift = 6;
 const unsigned count = 1 << shift; // ring size
 
@@ -304,6 +335,11 @@ vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, si
 	ensure2(loaded, !error, "dmamap load");
 	ensure(map->dm_mapsize == size, "mapsize");
 
+	for (unsigned i = 0; i < count; i++) {
+		dma->ptr.cmds[i].owner = dma == vkey_dma(sc, COMP) ? DEVICE : HOST;
+	}
+	bus_dmamap_sync(sc->sc_dmat, dma->map, 0, size, BUS_DMASYNC_PREWRITE);
+
 	log("ring allocated for %s of size %zu at kaddr %p and paddr %p", name, size, dma->ptr.addr, map->dm_segs);
 
 	return true;
@@ -328,35 +364,6 @@ vkey_rings(struct vkey_softc *sc) {
 	return true;
 fail:
 	return false;
-}
-
-struct vkey_dma *
-vkey_dma(struct vkey_softc *sc, enum vkey_ring ring)
-{
-	switch (ring) {
-		case CMD:
-			return &sc->sc_dma.cmd;
-		case REPLY:
-			return &sc->sc_dma.reply;
-		case COMP:
-			return &sc->sc_dma.comp;
-	}
-}
-
-void
-vkey_dmamap_sync(struct vkey_softc *sc, enum vkey_ring ring, long index, int syncs)
-{
-	size_t size;
-	struct vkey_dma *dma = vkey_dma(sc, ring);
-	if (index < 0) {
-		index = 0;
-		size = dma->map->dm_mapsize;
-	} else {
-		size = ring != COMP ? sizeof(struct vkey_cmd) : sizeof(struct vkey_comp);
-		index *= size;
-	}
-
-	bus_dmamap_sync(sc->sc_dmat, dma->map, index, size, syncs);
 }
 
 int
