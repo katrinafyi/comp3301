@@ -328,9 +328,11 @@ vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, si
 	ensure(!error, "dmamem alloc");
 	ensure2(alloced, nsegs == 1, "dmamem alloc");
 
+	// XXX IMPORTANT: the dm_seg fields cannot be used here. this requires a separate segment field.
 	error = bus_dmamem_map(sc->sc_dmat, dma->seg, 1, size, &dma->ptr.addr, BUS_DMA_WAITOK);
 	ensure2(mapped, !error && dma->ptr.addr, "dmamem map");
 
+	// XXX THEN, load will assign a paddr for the DMA and store /this/ inside the dm_seg.
 	error = bus_dmamap_load(sc->sc_dmat, map, dma->ptr.addr, size, NULL, BUS_DMA_WAITOK);
 	ensure2(loaded, !error, "dmamap load");
 	ensure(map->dm_mapsize == size, "mapsize");
@@ -559,9 +561,10 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 				cookie->segs, NITEMS(cookie->segs), &nitems,
 				BUS_DMA_NOWAIT);
 		ensure2(alloced, !error, "alloc");
-		ensure(nitems == NITEMS(cookie->segs), "nitems");
+		cookie->nsegs = nitems;
+		// ensure(nitems == NITEMS(cookie->segs), "nitems");
 
-		error = bus_dmamap_load_raw(sc->sc_dmat, cookie->map, cookie->segs, NITEMS(cookie->segs), size, BUS_DMA_NOWAIT);
+		error = bus_dmamap_load_raw(sc->sc_dmat, cookie->map, cookie->segs, cookie->nsegs, size, BUS_DMA_NOWAIT);
 		ensure2(loaded, !error, "load_raw");
 
 		struct vkey_cmd *reply = sc->sc_dma.reply.ptr.replies + index;
@@ -570,14 +573,23 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 
 		reply->type = -1;
 		reply->cookie = cook;
-		reply->len1 = cookie->map->dm_segs[0].ds_len;
-		reply->len2 = cookie->map->dm_segs[1].ds_len;
-		reply->len3 = cookie->map->dm_segs[2].ds_len;
-		reply->len4 = cookie->map->dm_segs[3].ds_len;
-		reply->ptr1 = (void *)cookie->map->dm_segs[0].ds_addr;
-		reply->ptr2 = (void *)cookie->map->dm_segs[1].ds_addr;
-		reply->ptr3 = (void *)cookie->map->dm_segs[2].ds_addr;
-		reply->ptr4 = (void *)cookie->map->dm_segs[3].ds_addr;
+		reply->len1 = reply->len2 = reply->len3 = reply->len4 = 0;
+		if (0 < cookie->map->dm_nsegs) {
+			reply->len1 = cookie->map->dm_segs[0].ds_len;
+			reply->ptr1 = (void *)cookie->map->dm_segs[0].ds_addr;
+		}
+		if (1 < cookie->map->dm_nsegs) {
+			reply->len2 = cookie->map->dm_segs[1].ds_len;
+			reply->ptr2 = (void *)cookie->map->dm_segs[1].ds_addr;
+		}
+		if (2 < cookie->map->dm_nsegs) {
+			reply->len3 = cookie->map->dm_segs[2].ds_len;
+			reply->ptr3 = (void *)cookie->map->dm_segs[2].ds_addr;
+		}
+		if (3 < cookie->map->dm_nsegs) {
+			reply->len4 = cookie->map->dm_segs[3].ds_len;
+			reply->ptr4 = (void *)cookie->map->dm_segs[3].ds_addr;
+		}
 
 		vkey_dmamap_sync(sc, REPLY, index, BUS_DMASYNC_PREWRITE);
 		reply->owner = DEVICE;
@@ -594,7 +606,7 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 	return cookie;
 fail: 
 	if (loaded) bus_dmamap_unload(sc->sc_dmat, cookie->map);
-	if (alloced) bus_dmamem_free(sc->sc_dmat, cookie->segs, NITEMS(cookie->segs));
+	if (alloced) bus_dmamem_free(sc->sc_dmat, cookie->segs, cookie->nsegs);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, cookie->map);
 	if (cookie) free(cookie, M_DEVBUF, 0);
 	return NULL;
@@ -673,6 +685,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 
 	desc->cookie = cmd->cookie;
 
+	// there are always 4.
 	desc->len1 = uiomap->dm_segs[0].ds_len;
 	desc->len2 = uiomap->dm_segs[1].ds_len;
 	desc->len3 = uiomap->dm_segs[2].ds_len;
@@ -725,7 +738,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 fail:
 	if (reply) {
 		bus_dmamap_unload(sc->sc_dmat, reply->map);
-		bus_dmamem_free(sc->sc_dmat, reply->map->dm_segs, reply->map->dm_nsegs);
+		bus_dmamem_free(sc->sc_dmat, reply->segs, reply->nsegs);
 		bus_dmamap_destroy(sc->sc_dmat, reply->map);
 		RB_REMOVE(cookies, &sc->sc_cookies, reply);
 		free(reply, M_DEVBUF, 0);
