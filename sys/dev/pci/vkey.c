@@ -428,11 +428,11 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	vkey_dmamap_sync(sc, REPLY, -1, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	vkey_dmamap_sync(sc, COMP, -1, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	sc->sc_bar->cbase = (uint64_t)sc->sc_dma.cmd.map->dm_segs;
+	sc->sc_bar->cbase = (uint64_t)sc->sc_dma.cmd.map->dm_segs[0].ds_addr;
 	sc->sc_bar->cshift = shift;
-	sc->sc_bar->rbase = (uint64_t)sc->sc_dma.reply.map->dm_segs;
+	sc->sc_bar->rbase = (uint64_t)sc->sc_dma.reply.map->dm_segs[0].ds_addr;
 	sc->sc_bar->rshift = shift;
-	sc->sc_bar->cpbase = (uint64_t)sc->sc_dma.comp.map->dm_segs;
+	sc->sc_bar->cpbase = (uint64_t)sc->sc_dma.comp.map->dm_segs[0].ds_addr;
 	sc->sc_bar->cpshift = shift;
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 
@@ -587,7 +587,7 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 	return cookie;
 fail: 
 	if (loaded) bus_dmamap_unload(sc->sc_dmat, cookie->map);
-	if (alloced) bus_dmamem_free(sc->sc_dmat, cookie->segs, 1);
+	if (alloced) bus_dmamem_free(sc->sc_dmat, cookie->segs, NITEMS(cookie->segs));
 	if (created) bus_dmamap_destroy(sc->sc_dmat, cookie->map);
 	if (cookie) free(cookie, M_DEVBUF, 0);
 	return NULL;
