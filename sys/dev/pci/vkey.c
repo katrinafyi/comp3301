@@ -1,4 +1,3 @@
-#include "sys/uio.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
@@ -154,7 +153,10 @@ struct vkey_cookie {
 
 	bool done; // command only: done wakeup flag.
 	uint64_t reply; // command only: cookie of corresponding reply.
-	struct vkey_dma dma; // reply only: only ptr and map accessed.
+	size_t replylen; // command only: total size of reply (possibly exceeding buffer size)
+
+	// reply only: only ptr and map accessed.
+	bus_dma_segment_t segs[4]; 
 	RB_ENTRY(vkey_cookie) link;
 };
 
@@ -208,6 +210,9 @@ struct vkey_softc {
 		struct vkey_dma reply;
 		struct vkey_dma comp;
 	} sc_dma;
+
+	pci_intr_handle_t sc_ih;
+	void *sc_ihc;
 };
 
 // real things below here.
@@ -459,6 +464,8 @@ vkeyopen(dev_t dev, int mode, int flags, struct proc *p)
 	struct vkey_softc *sc = vkey_lookup(dev);
 	ensure(sc, "open");
 
+	vkey_check(sc);
+
 	return (0);
 fail:
 	return ENXIO;
@@ -571,7 +578,8 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	ensure(sc->sc_nreply >= sc->sc_ncmd, "invariant failure!");
 	if (sc->sc_nreply == sc->sc_ncmd) {
 		ensure(sc->sc_nreply < sc->sc_dma.reply.count, "BIG FAIL");
-		ensure(vkey_ring_alloc(sc, REPLY, cook), "reply alloc");
+		struct vkey_cookie *reply = vkey_ring_alloc(sc, REPLY, cook);
+		ensure(reply, "reply alloc");
 		sc->sc_nreply++;
 	}
 
@@ -590,13 +598,12 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	error = bus_dmamap_load_uio(sc->sc_dmat, uiomap, &uio, BUS_DMA_NOWAIT | BUS_DMA_WRITE);
 	ensure2(loaded, !error, "load_uio");
 
-	bus_dmamap_sync(sc->sc_dmat, uiomap, 0, uiomap->dm_mapsize, BUS_DMASYNC_PREWRITE);
 
 	struct vkey_cmd *desc = sc->sc_dma.cmd.ptr.cmds + cmd->i;
 
 	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_POSTREAD);
 
-	ensure(desc->owner == HOST, "attempt to write on device-owned descriptor");
+	ensure(desc->owner == HOST, "attempt to write on non host-owned descriptor");
 
 	desc->cookie = cmd->cookie;
 
@@ -610,6 +617,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	desc->ptr4 = (void *)uiomap->dm_segs[3].ds_addr;
 	desc->type = arg->vkey_cmd;
 
+	bus_dmamap_sync(sc->sc_dmat, uiomap, 0, uiomap->dm_mapsize, BUS_DMASYNC_PREWRITE);
 	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_PREWRITE);
 
 	desc->owner = DEVICE;
@@ -637,18 +645,17 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	// XXX free reply cookie
 	// XXX write to user. use uiomove with buf=vkaddr of reply buffer, and uio describing the user-given iovecs. check for oversize.
 	
-	mtx_leave(&sc->sc_mtx);
-	mutexed = false;
-	
 	// vkeyioctl_cmd_new(sc, cookie, cmd);
 
 	// wait for notification from completion interrupts
 	// read from reply ring
-	return 0; // TODO: maybe re-use fail for cleanup.
+	// return 0; // TODO: maybe re-use fail for cleanup.
 fail:
-	if (loaded) {
-		bus_dmamap_unload(sc->sc_dmat, uiomap);
+	if (reply) {
+		RB_REMOVE(cookies, &sc->sc_cookies, reply);
+		free(reply, M_DEVBUF, 0);
 	}
+	if (loaded) bus_dmamap_unload(sc->sc_dmat, uiomap);
 	if (cmd) {
 		RB_REMOVE(cookies, &sc->sc_cookies, cmd);
 		free(cmd, M_DEVBUF, 0);
@@ -684,6 +691,54 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 void
 vkey_intr(void *arg)
 {
+	struct vkey_softc *sc = arg;
+
+	vkey_check(sc);
+
+	mtx_enter(&sc->sc_mtx);
+
+	for (unsigned i = 0; ; i++) {
+		size_t h = sc->sc_dma.comp.head;
+		sc->sc_dma.comp.head++;
+		sc->sc_dma.comp.head %= sc->sc_dma.comp.count;
+
+		vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_POSTREAD);
+
+		struct vkey_comp *comp = sc->sc_dma.comp.ptr.comps + h;
+		if (comp->owner != HOST) {
+			// finished processing completions for now
+			ensure(i == 0, "processed zero completions. interrupt fired too early?");
+			break;
+		}
+		log("processing completion index %zu, cmd %llu", h, comp->cmd_cookie);
+
+		struct vkey_cookie key = { .cookie = comp->cmd_cookie, .type = CMD };
+		struct vkey_cookie *cmd = RB_FIND(cookies, &sc->sc_cookies, &key);
+		ensure(cmd, "completion cmd");
+		sc->sc_ncmd--;
+		wakeup(&sc->sc_ncmd);
+
+		key = (struct vkey_cookie) { .cookie = comp->reply_cookie, .type = REPLY };
+		struct vkey_cookie *reply = RB_FIND(cookies, &sc->sc_cookies, &key);
+		if (comp->reply_cookie == 0 && comp->msglen == 0) {
+			log("completion without reply");
+		} else {
+			sc->sc_nreply--;
+			log("reply cookie %llu index %zu", reply->cookie, reply->i);
+		}
+
+		cmd->replylen = comp->msglen;
+		cmd->reply = reply->cookie;
+		cmd->done = true;
+		wakeup(&cmd->done);
+
+		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+		sc->sc_bar->cpdbell = h;
+		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+	}
+fail:
+	mtx_leave(&sc->sc_mtx);
+
 	// XXX lookup index 0 completion buffer
 	// XXX consider if completion has reply data.
 	// XXX regardless, match against command.
