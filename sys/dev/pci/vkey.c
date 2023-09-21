@@ -160,7 +160,7 @@ struct vkey_cookie {
 
 	// bus_dma_segment_t segs[4]; // reply only: only ptr and map accessed.
 	bus_dmamap_t map; // reply only: buffer for reply.
-	bus_dma_segment_t seg[1]; // reply only: segment
+	bus_dma_segment_t segs[4]; // reply only: segment
 	size_t nsegs;
 	RB_ENTRY(vkey_cookie) link;
 };
@@ -521,7 +521,7 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 	bool created = false, alloced = false, loaded = false;
 	struct vkey_cookie *cookie = NULL;
 
-	ensure(ring == CMD || ring == REPLY, "invalid ring in alloc");
+	ensure(ring == CMD || ring == REPLY, "invalid ring in alloc, cannot make cookie for completions");
 	struct vkey_dma *dma = vkey_dma(sc, ring);
 
 	int n = ring == CMD ? sc->sc_ncmd : sc->sc_nreply;
@@ -540,6 +540,7 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 	cookie->cookie = cook;
 	cookie->time = vkey_time();
 	cookie->i = index;
+	log("allocated cookie %llu, index %d in ring %d", cook, index, ring);
 
 	if (ring == REPLY) {
 		int nitems = 0;
@@ -548,11 +549,12 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 		ensure2(created, !error, "create");
 
 		error = bus_dmamem_alloc(sc->sc_dmat, size, 0, 0,
-				cookie->seg, 1, &nitems,
+				cookie->segs, NITEMS(cookie->segs), &nitems,
 				BUS_DMA_NOWAIT);
 		ensure2(alloced, !error, "alloc");
+		ensure(nitems == NITEMS(cookie->segs), "nitems");
 
-		error = bus_dmamap_load_raw(sc->sc_dmat, cookie->map, cookie->seg, 1, cookie->map->dm_mapsize, BUS_DMA_NOWAIT);
+		error = bus_dmamap_load_raw(sc->sc_dmat, cookie->map, cookie->segs, NITEMS(cookie->segs), size, BUS_DMA_NOWAIT);
 		ensure2(loaded, !error, "load_raw");
 
 		struct vkey_cmd *reply = sc->sc_dma.reply.ptr.replies + index;
@@ -585,7 +587,7 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 	return cookie;
 fail: 
 	if (loaded) bus_dmamap_unload(sc->sc_dmat, cookie->map);
-	if (alloced) bus_dmamem_free(sc->sc_dmat, cookie->map->dm_segs, cookie->map->dm_nsegs);
+	if (alloced) bus_dmamem_free(sc->sc_dmat, cookie->segs, 1);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, cookie->map);
 	if (cookie) free(cookie, M_DEVBUF, 0);
 	return NULL;
