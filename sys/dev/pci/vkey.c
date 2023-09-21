@@ -797,6 +797,6 @@ vkey_intr(void *arg)
 	}
 fail:
 	mtx_leave(&sc->sc_mtx);
-
+	return 0;
 	// !!! DO NOT return rings to HOST owner here. let ioctl do that to ensure it has read.
 }
