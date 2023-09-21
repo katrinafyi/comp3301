@@ -137,6 +137,7 @@ struct vkey_dma {
 	// bool *freelist; // in attach
 
 	bus_dmamap_t map; // in attach
+	bus_dma_segment_t seg[1]; // in attach
 	union {
 		struct vkey_cmd *cmds;
 		struct vkey_cmd *replies;
@@ -159,6 +160,7 @@ struct vkey_cookie {
 
 	// bus_dma_segment_t segs[4]; // reply only: only ptr and map accessed.
 	bus_dmamap_t map; // reply only: buffer for reply.
+	bus_dma_segment_t seg[1]; // reply only: segment
 	size_t nsegs;
 	RB_ENTRY(vkey_cookie) link;
 };
@@ -291,11 +293,11 @@ vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, si
 
 	int nsegs;
 	ensure(dma->ptr.addr == NULL, "double assignment");
-	error = bus_dmamem_alloc(sc->sc_dmat, size, 0, 0, map->dm_segs, map->dm_nsegs, &nsegs, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	error = bus_dmamem_alloc(sc->sc_dmat, size, 0, 0, dma->seg, 1, &nsegs, BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	ensure(!error, "dmamem alloc");
 	ensure2(alloced, nsegs == 1, "dmamem alloc");
 
-	error = bus_dmamem_map(sc->sc_dmat, map->dm_segs, map->dm_nsegs, map->dm_mapsize, &dma->ptr.addr, BUS_DMA_WAITOK);
+	error = bus_dmamem_map(sc->sc_dmat, dma->seg, 1, size, &dma->ptr.addr, BUS_DMA_WAITOK);
 	ensure2(mapped, !error && dma->ptr.addr, "dmamem map");
 
 	// error = bus_dmamap_load(sc->sc_dmat, map, dma->ptr.addr, map->dm_mapsize, NULL, BUS_DMA_WAITOK);
@@ -545,11 +547,11 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 		ensure2(created, !error, "create");
 
 		error = bus_dmamem_alloc(sc->sc_dmat, size, 0, 0,
-				cookie->map->dm_segs, cookie->map->dm_nsegs, &nitems,
+				cookie->seg, 1, &nitems,
 				BUS_DMA_NOWAIT);
 		ensure2(alloced, !error, "alloc");
 
-		error = bus_dmamap_load_raw(sc->sc_dmat, cookie->map, cookie->map->dm_segs, cookie->map->dm_nsegs, cookie->map->dm_mapsize, BUS_DMA_NOWAIT);
+		error = bus_dmamap_load_raw(sc->sc_dmat, cookie->map, cookie->seg, 1, cookie->map->dm_mapsize, BUS_DMA_NOWAIT);
 		ensure2(loaded, !error, "load_raw");
 
 		struct vkey_cmd *reply = sc->sc_dma.reply.ptr.replies + index;
