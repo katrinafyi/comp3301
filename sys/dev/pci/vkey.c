@@ -1,3 +1,4 @@
+#include "sys/uio.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
@@ -12,6 +13,8 @@
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcidevs.h>
 #include <dev/vkeyvar.h>
+
+#define NITEMS(x) (sizeof(x) / sizeof(*(x)))
 
 #define log(msg, ...) printf("%s:%d\t" msg "\n", __func__, __LINE__, ##__VA_ARGS__)
 
@@ -126,9 +129,10 @@ enum vkey_ring {
 struct vkey_dma {
 	unsigned count;
 	size_t esize;
-	// size_t size;
 
-	enum vkey_owner *ownerlist; // in attach
+	size_t head; // index of next insertion
+
+	bool *freelist; // in attach
 
 	bus_dmamap_t map; // in attach
 	// bus_dma_segment_t seg; 
@@ -177,6 +181,7 @@ RB_GENERATE(cookies, vkey_cookie, link, vkey_cookie_cmp);
 
 
 const uint64_t reply_cookie = 10000000000000000000U; // 10^19
+const uint32_t reply_mask = 1 << 31; 
 
 struct vkey_softc {
 	struct device	 sc_dev;
@@ -248,19 +253,19 @@ const unsigned shift = 6;
 const unsigned count = 1 << shift;
 
 bool
-vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, size_t descsize, enum vkey_owner owner) {
+vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, size_t descsize) {
 	int error;
 
 	dma->count = count;
 	dma->esize = descsize;
 	size_t size = count * descsize;
 	// dma->size = count * size;
-	ensure(dma->ownerlist == NULL, "ownerlist");
-	dma->ownerlist = malloc(count * sizeof(enum vkey_owner), M_DEVBUF, M_NOWAIT);
-	ensure2(malloced, dma->ownerlist, "malloc");
+	ensure(dma->freelist == NULL, "freelist");
+	dma->freelist = malloc(count * sizeof(dma->freelist[0]), M_DEVBUF, M_NOWAIT);
+	ensure2(malloced, dma->freelist, "malloc");
 
 	for (unsigned i = 0; i < count; i++)
-		dma->ownerlist[i] = owner;
+		dma->freelist[i] = true;
 
 	ensure(!dma->map, "dmamap double create");
 	error = bus_dmamap_create(sc->sc_dmat, size,
@@ -290,19 +295,17 @@ fail:
 	if (mapped) bus_dmamem_unmap(sc->sc_dmat, dma->ptr.addr, map->dm_mapsize);
 	if (alloced) bus_dmamem_free(sc->sc_dmat, map->dm_segs, map->dm_nsegs);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, map);
-	if (malloced) free(dma->ownerlist, M_DEVBUF, 0);
+	if (malloced) free(dma->freelist, M_DEVBUF, 0);
 	return false;
 }
 
 bool
 vkey_rings(struct vkey_softc *sc) {
-	ensure(vkey_ring_init(sc, "cmd", &sc->sc_dma.cmd, sizeof(struct vkey_cmd), HOST), "cmd");
-	ensure(vkey_ring_init(sc, "reply", &sc->sc_dma.reply, sizeof(struct vkey_cmd), HOST), "reply");
-	ensure(vkey_ring_init(sc, "comp", &sc->sc_dma.comp, sizeof(struct vkey_comp), DEVICE), "comp");
+	ensure(vkey_ring_init(sc, "cmd", &sc->sc_dma.cmd, sizeof(struct vkey_cmd)), "cmd");
+	ensure(vkey_ring_init(sc, "reply", &sc->sc_dma.reply, sizeof(struct vkey_cmd)), "reply");
+	ensure(vkey_ring_init(sc, "comp", &sc->sc_dma.comp, sizeof(struct vkey_comp)), "comp");
 
-	for (unsigned i = 0; i < sc->sc_dma.cmd.count; i++) {
-		sc->sc_dma.cmd.ptr.cmds[i].owner = HOST;
-		sc->sc_dma.reply.ptr.replies[i].owner = HOST;
+	for (unsigned i = 0; i < sc->sc_dma.comp.count; i++) {
 		sc->sc_dma.comp.ptr.comps[i].owner = DEVICE;
 	}
 
@@ -331,31 +334,36 @@ vkey_dma(struct vkey_softc *sc, enum vkey_ring ring)
 }
 
 void
-vkey_dmamap_sync(struct vkey_softc *sc, enum vkey_ring ring, int syncs)
+vkey_dmamap_sync(struct vkey_softc *sc, enum vkey_ring ring, long index, int syncs)
 {
+	size_t size;
 	struct vkey_dma *dma = vkey_dma(sc, ring);
-	bus_dmamap_sync(sc->sc_dmat, dma->map, 0, dma->map->dm_mapsize, syncs);
+	if (index < 0) {
+		index = 0;
+		size = dma->map->dm_mapsize;
+	} else {
+		size = ring != COMP ? sizeof(struct vkey_cmd) : sizeof(struct vkey_comp);
+		index *= size;
+	}
+
+	bus_dmamap_sync(sc->sc_dmat, dma->map, index, size, syncs);
 }
 
 int
-vkey_ring_usable(struct vkey_softc *sc, enum vkey_ring ring, int start)
+vkey_ring_usable(struct vkey_softc *sc, enum vkey_ring ring)
 {
+	ensure(ring != COMP, "COMP ring disallowed");
 	struct vkey_dma *dma = vkey_dma(sc, ring);
 
-	int index = -1;
-	size_t count = dma->count;
-	for (unsigned i = 0; i < count; i++) {
-		// begin scan in middle to find empty spaces faster
-		int j = (start + i) % count;
-		if (dma->ownerlist[j] == HOST) {
-			index = j;
-			dma->ownerlist[j] = DEVICE;
-			break;
-		}
-	}
-	ensure2(indexed, index >= 0, "empty desc in ring %d not found, THIS SHOULD NOT HAPPEN. too many requests in flight?", ring);
+	size_t n = ring == CMD ? sc->sc_ncmd : sc->sc_nreply;
+	ensure(n < dma->count, "empty desc in ring %d not found, THIS SHOULD BE GUARDED BY ncmd/nreply. too many requests in flight?", ring);
+
+	size_t h = dma->head;
+	dma->head++;
+	dma->head %= dma->count;
+	return h;
 fail:
-	return index;
+	return -1;
 }
 
 
@@ -406,9 +414,9 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	sc->sc_dmat = pa->pa_dmat;
 	ensure(vkey_rings(sc), "rings");
 
-	vkey_dmamap_sync(sc, CMD, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	vkey_dmamap_sync(sc, REPLY, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	vkey_dmamap_sync(sc, COMP, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	vkey_dmamap_sync(sc, CMD, -1, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	vkey_dmamap_sync(sc, REPLY, -1, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	vkey_dmamap_sync(sc, COMP, -1, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	sc->sc_bar->cbase = (uint64_t)sc->sc_dma.cmd.ptr.addr;
 	sc->sc_bar->cshift = shift;
@@ -418,9 +426,9 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	sc->sc_bar->cpshift = shift;
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 
-	vkey_dmamap_sync(sc, CMD, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-	vkey_dmamap_sync(sc, REPLY, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-	vkey_dmamap_sync(sc, COMP, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	vkey_dmamap_sync(sc, CMD, -1, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	vkey_dmamap_sync(sc, REPLY, -1, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	vkey_dmamap_sync(sc, COMP, -1, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 	ensure(vkey_check(sc), "initial check");
 	printf(": vkey_attach success\n");
@@ -495,11 +503,12 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 	int n = ring == CMD ? sc->sc_ncmd : sc->sc_nreply;
 	ensure(n < dma->count, "over-allocating in ring %d", ring);
 
-	struct vkey_cookie *cookie = malloc(sizeof(struct vkey_cookie), M_DEVBUF, M_ZERO);
+	struct vkey_cookie *cookie = malloc(sizeof(struct vkey_cookie), M_DEVBUF, M_ZERO | M_NOWAIT);
 	ensure(cookie, "malloc");
 
 	// committed to allocation
-	int index = vkey_ring_usable(sc, ring, cook);
+	int index = vkey_ring_usable(sc, ring);
+	ensure(index >= 0, "usable");
 
 	cook += ring == REPLY ? reply_cookie : 0;
 	cookie->type = ring;
@@ -521,17 +530,34 @@ fail:
 }
 
 int
-vkeyioctl_cmd(struct vkey_softc *sc, struct vkey_cmd_arg *cmd)
+vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 {
 	int error = EIO;
 	bool mutexed = false;
+
+	struct uio uio;
+
+	uio.uio_offset = 0;
+	uio.uio_iov = arg->vkey_in;
+	uio.uio_iovcnt = 4;
+	uio.uio_resid = 0;
+	for (unsigned i = 0; i < NITEMS(arg->vkey_in); i++)
+		uio.uio_resid += arg->vkey_in[i].iov_len;
+	uio.uio_rw = UIO_WRITE;
+	uio.uio_segflg = UIO_USERSPACE;
+	uio.uio_procp = p;
+
+	bus_dmamap_t uiomap;
+	error = bus_dmamap_create(sc->sc_dmat, uio.uio_resid, 4, uio.uio_resid, 0, BUS_DMA_ALLOCNOW | BUS_DMA_64BIT | BUS_DMA_WAITOK, &uiomap);
+	ensure2(created, !error, "bus_dmamap_create");
+
 
 	// *************** MUTEX ENTER  ***************
 	mtx_enter(&sc->sc_mtx);
 	mutexed = true;
 
 	uint64_t cook = sc->sc_cookiegen++;
-	ensure(cook < reply_cookie, "cookie counter overflow!");
+	ensure(cook < reply_cookie, "cookie counter overflow! maybe the system has been on for too long...");
 
 	log("cookie: %llu", cook);
 
@@ -542,7 +568,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct vkey_cmd_arg *cmd)
 	}
 	ensure(sc->sc_ncmd < sc->sc_dma.cmd.count, "BIG FAILURE. spin lock invariant failed");
 
-	ensure(sc->sc_nreply >= sc->sc_ncmd, "invariant failure");
+	ensure(sc->sc_nreply >= sc->sc_ncmd, "invariant failure!");
 	if (sc->sc_nreply == sc->sc_ncmd) {
 		ensure(sc->sc_nreply < sc->sc_dma.reply.count, "BIG FAIL");
 		ensure(vkey_ring_alloc(sc, REPLY, cook), "reply alloc");
@@ -550,25 +576,62 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct vkey_cmd_arg *cmd)
 	}
 
 	// claim cmd descriptor
-	struct vkey_cookie *cookie = vkey_ring_alloc(sc, CMD, cook);
-	ensure(cookie, "cmd alloc");
-	log("index: %zu", cookie->i);
+	struct vkey_cookie *cmd = vkey_ring_alloc(sc, CMD, cook);
+	ensure(cmd, "cmd cookie alloc");
+	log("index: %zu", cmd->i);
 	sc->sc_ncmd++;
+
+	ensure(sc->sc_nreply >= sc->sc_ncmd, "invariant failure!");
 
 	// WE SHOULD NOT FAIL FROM HERE UNTIL AFTER WRITING DMA
 
-	// XXX use uiomove to create dma operation for writing command
-	//
-	// XXX dma sync PREWRITE on command ring
-	// XXX write OWNER to command ring and set doorbell
-	// XXX dma sync POSTWRITE on command ring
-	//
-	// XXX spin until completion received
+	// we can always write, the device should be smart enough to handle concurrent write/completion/reply?
+
+	error = bus_dmamap_load_uio(sc->sc_dmat, uiomap, &uio, BUS_DMA_NOWAIT | BUS_DMA_WRITE);
+	ensure2(loaded, !error, "load_uio");
+
+	bus_dmamap_sync(sc->sc_dmat, uiomap, 0, uiomap->dm_mapsize, BUS_DMASYNC_PREWRITE);
+
+	struct vkey_cmd *desc = sc->sc_dma.cmd.ptr.cmds + cmd->i;
+
+	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_POSTREAD);
+
+	ensure(desc->owner == HOST, "attempt to write on device-owned descriptor");
+
+	desc->cookie = cmd->cookie;
+
+	desc->len1 = uiomap->dm_segs[0].ds_len;
+	desc->len2 = uiomap->dm_segs[1].ds_len;
+	desc->len3 = uiomap->dm_segs[2].ds_len;
+	desc->len4 = uiomap->dm_segs[3].ds_len;
+	desc->ptr1 = (void *)uiomap->dm_segs[0].ds_addr;
+	desc->ptr2 = (void *)uiomap->dm_segs[1].ds_addr;
+	desc->ptr3 = (void *)uiomap->dm_segs[2].ds_addr;
+	desc->ptr4 = (void *)uiomap->dm_segs[3].ds_addr;
+	desc->type = arg->vkey_cmd;
+
+	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_PREWRITE);
+
+	desc->owner = DEVICE;
+
+	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+	sc->sc_bar->dbell = cmd->i;
+	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+
+	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_POSTWRITE);
 
 	do {
-		ensure(msleep_nsec(&cookie->done, &sc->sc_mtx, PCATCH | PRIBIO, "vkey done wait", INFSLP),
-				"awoken");
-	} while (cookie->done == false);
+		ensure(msleep_nsec(&cmd->done, &sc->sc_mtx, PCATCH | PRIBIO, "vkey done wait", INFSLP),
+				"sleep disturbed");
+	} while (cmd->done == false);
+
+	log("received reply on cookie %llu", cmd->reply);
+	struct vkey_cookie key = { .cookie = cmd->reply, .type = REPLY };
+	struct vkey_cookie *reply = RB_FIND(cookies, &sc->sc_cookies, &key);
+	// ensure(reply, "reply cookie not found in tree. maybe no reply?");
+	log("reply cookie: %p", reply);
+
+
 
 	// XXX if has reply date, obtain from reply cookie.
 	// XXX free reply cookie
@@ -583,11 +646,15 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct vkey_cmd_arg *cmd)
 	// read from reply ring
 	return 0; // TODO: maybe re-use fail for cleanup.
 fail:
-	if (cookie) {
-		RB_REMOVE(cookies, &sc->sc_cookies, cookie);
-		free(cookie, M_DEVBUF, 0);
+	if (loaded) {
+		bus_dmamap_unload(sc->sc_dmat, uiomap);
+	}
+	if (cmd) {
+		RB_REMOVE(cookies, &sc->sc_cookies, cmd);
+		free(cmd, M_DEVBUF, 0);
 	}
 	if (mutexed) mtx_leave(&sc->sc_mtx);
+	if (created) bus_dmamap_destroy(sc->sc_dmat, uiomap);
 	return error;
 }
 
@@ -609,7 +676,7 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		return 0;
 	case VKEYIOC_CMD:
 		printf("vkey cmd unhandled\n");
-		return vkeyioctl_cmd(sc, (void *)data);
+		return vkeyioctl_cmd(sc, p, (void *)data);
 	}
 	assert(0 && "vkeyioctl unhandled");
 }
