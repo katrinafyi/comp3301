@@ -207,8 +207,11 @@ struct vkey_softc {
 
 	unsigned long sc_cookiegen;
 	unsigned int sc_ncmd;  // number of commands in-flight
-	unsigned int sc_nreply; // number of reply descriptors available
+	unsigned int sc_nreplyfree; // number of reply descriptors allocated
 
+	// nreply used = ncmd 
+	// nreply alloced = ncmd + nreply free
+	
 	bus_dma_tag_t sc_dmat;
 	struct {
 		struct vkey_dma cmd;
@@ -368,13 +371,13 @@ fail:
 	return false;
 }
 
-int
+long
 vkey_ring_usable(struct vkey_softc *sc, enum vkey_ring ring)
 {
 	ensure(ring != COMP, "COMP ring disallowed");
 	struct vkey_dma *dma = vkey_dma(sc, ring);
 
-	size_t n = ring == CMD ? sc->sc_ncmd : sc->sc_nreply;
+	size_t n = ring == CMD ? sc->sc_ncmd : sc->sc_nreplyfree + sc->sc_ncmd;
 	ensure(n < dma->count, "empty desc in ring %d not found, THIS SHOULD BE GUARDED BY ncmd/nreply. too many requests in flight?", ring);
 
 	size_t h = dma->head;
@@ -533,7 +536,7 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 	ensure(ring == CMD || ring == REPLY, "invalid ring in alloc, cannot make cookie for completions");
 	struct vkey_dma *dma = vkey_dma(sc, ring);
 
-	int n = ring == CMD ? sc->sc_ncmd : sc->sc_nreply;
+	int n = ring == CMD ? sc->sc_ncmd : sc->sc_nreplyfree;
 	ensure(n < dma->count, "over-allocating in ring %d", ring);
 
 	cookie = malloc(sizeof(struct vkey_cookie), M_DEVBUF, M_ZERO | M_NOWAIT);
@@ -653,12 +656,14 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	}
 	ensure(sc->sc_ncmd < sc->sc_dma.cmd.count, "BIG FAILURE. spin lock invariant failed");
 
-	ensure(sc->sc_nreply >= sc->sc_ncmd, "invariant failure!");
-	if (sc->sc_nreply == sc->sc_ncmd) {
-		ensure(sc->sc_nreply < sc->sc_dma.reply.count, "BIG FAIL");
+	ensure(sc->sc_nreplyfree >= 0, "invariant failure!");
+	if (sc->sc_nreplyfree == 0) {
+		// at this point, due to cmd wait loop and invariant we can be sure there is
+		// space for a new reply buffer.
+		ensure(sc->sc_nreplyfree + sc->sc_ncmd < sc->sc_dma.reply.count, "BIG FAIL");
 		struct vkey_cookie *reply = vkey_ring_alloc(sc, REPLY, cook);
 		ensure(reply, "reply alloc");
-		sc->sc_nreply++;
+		sc->sc_nreplyfree++;
 	}
 
 	// claim cmd descriptor
@@ -666,8 +671,9 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	ensure(cmd, "cmd cookie alloc");
 	log("index: %zu", cmd->i);
 	sc->sc_ncmd++;
+	sc->sc_nreplyfree--;
 
-	ensure(sc->sc_nreply >= sc->sc_ncmd, "invariant failure!");
+	ensure(sc->sc_nreplyfree >= sc->sc_ncmd, "invariant failure!");
 
 	// WE SHOULD NOT FAIL FROM HERE UNTIL AFTER WRITING DMA
 
@@ -722,7 +728,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 
 
 
-	// XXX if has reply date, obtain from reply cookie.
+	// XXX if has reply data, obtain from reply cookie.
 	// XXX free reply cookie
 	// XXX write to user. use uiomove with buf=vkaddr of reply buffer, and uio describing the user-given iovecs. check for oversize.
 	
@@ -732,16 +738,59 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	// read from reply ring
 	// return 0; // TODO: maybe re-use fail for cleanup.
 
+
+	// if we read a reply, we will recycle the reply buffer back to the
+	// head of the ring for re-use. this is not needed if we didn't read a reply
+	// since the buffer will remain in its position ready to use.
+	if (reply) {
+		RB_REMOVE(cookies, &sc->sc_cookies, reply);
+
+		// invalidate old reply descriptor
+		struct vkey_cmd *rep = sc->sc_dma.reply.ptr.replies + reply->i;
+		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_POSTREAD);
+		rep->cookie = -1;
+		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_PREWRITE);
+
+		// move cookie into new ring position.
+		long i2 = vkey_ring_usable(sc, REPLY);
+		ensure(i2 >= 0, "usable");
+		log("recycling REPLY ring from %zu to %ld", reply->i, i2);
+		reply->i = i2;
+		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_POSTREAD);
+
+		struct vkey_cmd *rep2 = sc->sc_dma.reply.ptr.replies + reply->i;
+		rep2->cookie = reply_cookie + sc->sc_cookiegen++;
+		rep2->len1 = rep->len1;
+		rep2->len2 = rep->len2;
+		rep2->len3 = rep->len3;
+		rep2->len4 = rep->len4;
+		rep2->ptr1 = rep->ptr1;
+		rep2->ptr2 = rep->ptr2;
+		rep2->ptr3 = rep->ptr3;
+		rep2->ptr4 = rep->ptr4;
+
+		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_PREWRITE);
+		rep2->owner = DEVICE;
+		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_PREWRITE);
+
+		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+		sc->sc_bar->dbell = reply_mask | reply->i;
+		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+
+		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_POSTWRITE);
+
+		RB_INSERT(cookies, &sc->sc_cookies, reply);
+	}
+
+	// return to pool.
 	sc->sc_ncmd--;
-	if (reply)
-		sc->sc_nreply--;
+	sc->sc_nreplyfree++;
 fail:
 	if (reply) {
-		bus_dmamap_unload(sc->sc_dmat, reply->map);
-		bus_dmamem_free(sc->sc_dmat, reply->segs, reply->nsegs);
-		bus_dmamap_destroy(sc->sc_dmat, reply->map);
-		RB_REMOVE(cookies, &sc->sc_cookies, reply);
-		free(reply, M_DEVBUF, 0);
+		// bus_dmamap_unload(sc->sc_dmat, reply->map);
+		// bus_dmamem_free(sc->sc_dmat, reply->segs, reply->nsegs);
+		// bus_dmamap_destroy(sc->sc_dmat, reply->map);
+		// free(reply, M_DEVBUF, 0);
 	}
 	if (loaded) bus_dmamap_unload(sc->sc_dmat, uiomap);
 	if (cmd) {
@@ -795,10 +844,11 @@ vkey_intr(void *arg)
 		struct vkey_comp *comp = sc->sc_dma.comp.ptr.comps + h;
 		if (comp->owner != HOST) {
 			// finished processing completions for now
-			ensure(i == 0, "processed zero completions. interrupt fired too early?");
+			ensure(i > 0, "processed zero completions. interrupt fired too early?");
 			break;
 		}
-		log("processing completion index %zu, cmd %llu", h, comp->cmd_cookie);
+		log("processing completion index %zu, type %d, cmd %llu, reply %llu",
+				h, comp->type, comp->cmd_cookie, comp->reply_cookie);
 
 		struct vkey_cookie key = { .cookie = comp->cmd_cookie, .type = CMD };
 		struct vkey_cookie *cmd = RB_FIND(cookies, &sc->sc_cookies, &key);
@@ -809,16 +859,19 @@ vkey_intr(void *arg)
 		if (comp->reply_cookie == 0 && comp->msglen == 0) {
 			log("completion without reply");
 		} else {
+			ensure(reply, "reply not found when expected");
 			log("reply cookie %llu index %zu", reply->cookie, reply->i);
 		}
 
 		cmd->replylen = comp->msglen;
-		cmd->reply = reply->cookie;
+		cmd->reply = comp->reply_cookie;
 		cmd->done = true;
 
 		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 		sc->sc_bar->cpdbell = h;
 		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+
+		wakeup(&cmd->done);
 	}
 fail:
 	mtx_leave(&sc->sc_mtx);
