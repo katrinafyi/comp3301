@@ -274,7 +274,7 @@ const unsigned count = 1 << shift; // ring size
 bool
 vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, size_t descsize) {
 	int error;
-	bool created = false, alloced = false, mapped = false, loaded = false;
+	bool created = false, alloced = false, mapped = false;
 
 	dma->count = count;
 	dma->esize = descsize;
@@ -291,21 +291,21 @@ vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, si
 
 	int nsegs;
 	ensure(dma->ptr.addr == NULL, "double assignment");
-	error = bus_dmamem_alloc(sc->sc_dmat, map->dm_mapsize, 0, 0, map->dm_segs, map->dm_nsegs, &nsegs, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	error = bus_dmamem_alloc(sc->sc_dmat, size, 0, 0, map->dm_segs, map->dm_nsegs, &nsegs, BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	ensure(!error, "dmamem alloc");
 	ensure2(alloced, nsegs == 1, "dmamem alloc");
 
 	error = bus_dmamem_map(sc->sc_dmat, map->dm_segs, map->dm_nsegs, map->dm_mapsize, &dma->ptr.addr, BUS_DMA_WAITOK);
 	ensure2(mapped, !error && dma->ptr.addr, "dmamem map");
 
-	error = bus_dmamap_load(sc->sc_dmat, map, dma->ptr.addr, map->dm_mapsize, NULL, BUS_DMA_WAITOK);
-	ensure2(loaded, !error, "dmamap load");
+	// error = bus_dmamap_load(sc->sc_dmat, map, dma->ptr.addr, map->dm_mapsize, NULL, BUS_DMA_WAITOK);
+	// ensure2(loaded, !error, "dmamap load");
 
 	log("ring allocated for %s of %zu size at %p", name, map->dm_mapsize, dma->ptr.addr);
 
 	return true;
 fail:
-	if (loaded) bus_dmamap_unload(sc->sc_dmat, map);
+	// if (loaded) bus_dmamap_unload(sc->sc_dmat, map);
 	if (mapped) bus_dmamem_unmap(sc->sc_dmat, dma->ptr.addr, map->dm_mapsize);
 	if (alloced) bus_dmamem_free(sc->sc_dmat, map->dm_segs, map->dm_nsegs);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, map);
