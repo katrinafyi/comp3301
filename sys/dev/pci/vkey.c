@@ -736,8 +736,9 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	sc->sc_bar->dbell = cmd->i;
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 
-	vkey_dmamap_sync(sc, REPLY, -1, BUS_DMASYNC_POSTREAD);
+	// vkey_dmamap_sync(sc, REPLY, -1, BUS_DMASYNC_POSTREAD);
 	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(sc->sc_dmat, uiomap, 0, uiomap->dm_mapsize, BUS_DMASYNC_POSTWRITE);
 
 	do {
 		error = msleep_nsec(&cmd->done, &sc->sc_mtx, PCATCH | PRIBIO, "vkey done wait", INFSLP);
@@ -751,7 +752,6 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	// ensure(reply, "reply cookie not found in tree. maybe no reply?");
 	log("reply cookie: %p", reply);
 
-	// XXX leave mutex before performing large copies.
 	mtx_leave(&sc->sc_mtx);
 	mutexed = false;
 
@@ -785,17 +785,18 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	
 	log("success :3");
 fail:
-	// cleanup operations require mutex!
-	if (!mutexed) {
-		mtx_enter(&sc->sc_mtx);
-		mutexed = true;
+	if (mutexed) {
+		mtx_leave(&sc->sc_mtx);
+		mutexed = false;
 	}
 	if (replymap) bus_dmamem_unmap(sc->sc_dmat, replyptr, cmd->replylen);
 	// if we read a reply, we will recycle the reply buffer back to the
 	// head of the ring for re-use. this is not needed if we didn't read a reply
 	// since the buffer will remain in its position ready to use.
 	if (reply) {
+		mtx_enter(&sc->sc_mtx);
 		RB_REMOVE(cookies, &sc->sc_cookies, reply);
+		mtx_leave(&sc->sc_mtx);
 
 		// invalidate old reply descriptor
 		struct vkey_cmd *rep = sc->sc_dma.reply.ptr.replies + reply->i;
@@ -835,14 +836,18 @@ fail:
 
 		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_POSTWRITE);
 
+		mtx_enter(&sc->sc_mtx);
 		RB_INSERT(cookies, &sc->sc_cookies, reply);
+		mtx_leave(&sc->sc_mtx);
 	}
 
 	if (incremented) {
 		// return to pool.
+		mtx_enter(&sc->sc_mtx);
 		sc->sc_ncmd--;
 		sc->sc_nreplyfree++;
 		wakeup(&sc->sc_ncmd);
+		mtx_leave(&sc->sc_mtx);
 	}
 	if (reply) {
 		// bus_dmamap_unload(sc->sc_dmat, reply->map);
@@ -852,10 +857,11 @@ fail:
 	}
 	if (loaded) bus_dmamap_unload(sc->sc_dmat, uiomap);
 	if (cmd) {
+		mtx_enter(&sc->sc_mtx);
 		RB_REMOVE(cookies, &sc->sc_cookies, cmd);
+		mtx_leave(&sc->sc_mtx);
 		free(cmd, M_DEVBUF, 0);
 	}
-	if (mutexed) mtx_leave(&sc->sc_mtx);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, uiomap);
 	log("ncmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree);
 	log("return with error=%d", ret);
@@ -895,8 +901,6 @@ vkey_intr(void *arg)
 
 	ensure(vkey_check(sc), "check");
 
-	mtx_enter(&sc->sc_mtx);
-	mutexed = true;
 	
 	// sc->sc_dma.comp.head = 0;
 	for (nprocessed = 0; ; nprocessed++) {
@@ -917,12 +921,19 @@ vkey_intr(void *arg)
 				nprocessed, h, comp->type, comp->cmd_cookie, comp->reply_cookie,
 				comp->msglen, comp->owner);
 
+		mtx_enter(&sc->sc_mtx);
+		mutexed = true;
+
 		struct vkey_cookie key = { .cookie = comp->cmd_cookie, .type = CMD };
 		struct vkey_cookie *cmd = RB_FIND(cookies, &sc->sc_cookies, &key);
 		ensure(cmd, "completion cmd");
 
 		key = (struct vkey_cookie) { .cookie = comp->reply_cookie, .type = REPLY };
 		struct vkey_cookie *reply = RB_FIND(cookies, &sc->sc_cookies, &key);
+
+		mtx_leave(&sc->sc_mtx);
+		mutexed = false;
+
 		if (comp->reply_cookie == 0 && comp->msglen == 0) {
 			log("... completion without reply");
 		} else {
