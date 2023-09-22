@@ -502,11 +502,13 @@ vkeyclose(dev_t dev, int flag, int mode, struct proc *p)
 	struct vkey_softc *sc = vkey_lookup(dev);
 	ensure(sc != NULL, "close");
 
+	mtx_enter(&sc->sc_mtx);
 	while (sc->sc_ncmd > 0) {
 		// XXX don't forget to wakeup when decrementing ncmd
 		ensure(msleep_nsec(&sc->sc_ncmd, &sc->sc_mtx, PCATCH | PRIBIO, "vkeyclose sc_ncmd", INFSLP),
 				"awoken");
 	}
+	mtx_leave(&sc->sc_mtx);
 
 	return (0);
 fail:
@@ -753,7 +755,8 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 
 		// move cookie into new ring position.
 		long i2 = vkey_ring_usable(sc, REPLY);
-		ensure(i2 >= 0, "usable");
+		ensure(i2 >= 0, "BIG FAIL. usable");
+
 		log("recycling REPLY ring from %zu to %ld", reply->i, i2);
 		reply->i = i2;
 		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_POSTREAD);
