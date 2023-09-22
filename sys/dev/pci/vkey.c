@@ -699,9 +699,9 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 				mutexed = false;
 
 				log("allocating new reply buffer of size %zu", bouncesize);
-				ensure(bus_dmamap_create(sc->sc_dmat, bouncesize, 4, bouncesize, 0,
-							BUS_DMA_WAITOK | BUS_DMA_ALLOCNOW, &replymap),
-						"create");
+				error = bus_dmamap_create(sc->sc_dmat, bouncesize, 4, bouncesize, 0,
+						BUS_DMA_WAITOK | BUS_DMA_ALLOCNOW, &replymap);
+				ensure(!error, "create");
 
 				mtx_enter(&sc->sc_mtx);
 				mutexed = true;
