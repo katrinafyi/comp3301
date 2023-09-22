@@ -786,7 +786,10 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	log("success :3");
 fail:
 	// cleanup operations require mutex!
-	if (!mutexed) mtx_enter(&sc->sc_mtx);
+	if (!mutexed) {
+		mtx_enter(&sc->sc_mtx);
+		mutexed = true;
+	}
 	if (replymap) bus_dmamem_unmap(sc->sc_dmat, replyptr, cmd->replylen);
 	// if we read a reply, we will recycle the reply buffer back to the
 	// head of the ring for re-use. this is not needed if we didn't read a reply
