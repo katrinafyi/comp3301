@@ -632,7 +632,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 
 	uio.uio_offset = 0;
 	uio.uio_iov = arg->vkey_in;
-	uio.uio_iovcnt = 4;
+	uio.uio_iovcnt = NITEMS(arg->vkey_in);
 	uio.uio_resid = 0;
 	for (unsigned i = 0; i < NITEMS(arg->vkey_in); i++)
 		uio.uio_resid += arg->vkey_in[i].iov_len;
@@ -852,7 +852,8 @@ vkey_intr(void *arg)
 
 	mtx_enter(&sc->sc_mtx);
 	mutexed = true;
-
+	
+	sc->sc_dma.comp.head = 0;
 	for (nprocessed = 0; ; nprocessed++) {
 		size_t h = sc->sc_dma.comp.head;
 		sc->sc_dma.comp.head++;
@@ -881,18 +882,18 @@ vkey_intr(void *arg)
 		} else {
 			ensure(reply, "reply not found when expected");
 			log("... reply cookie %llu index %zu", reply->cookie, reply->i);
+
+			cmd->replylen = comp->msglen;
+			cmd->reply = comp->reply_cookie;
+			cmd->done = true;
+
+			vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+			log("... CPDBELL: %zu", h);
+			sc->sc_bar->cpdbell = h;
+			vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+
+			wakeup(&cmd->done);
 		}
-
-		cmd->replylen = comp->msglen;
-		cmd->reply = comp->reply_cookie;
-		cmd->done = true;
-
-		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
-		log("... CPDBELL: %zu", h);
-		sc->sc_bar->cpdbell = h;
-		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
-
-		wakeup(&cmd->done);
 	}
 fail:
 	log("vkey_intr leave (processed %u)", nprocessed);
