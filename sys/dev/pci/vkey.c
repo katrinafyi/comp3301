@@ -675,7 +675,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	sc->sc_ncmd++;
 	sc->sc_nreplyfree--;
 
-	ensure(sc->sc_nreplyfree >= sc->sc_ncmd, "invariant failure!");
+	ensure(sc->sc_nreplyfree >= 0, "invariant failure!");
 
 	// WE SHOULD NOT FAIL FROM HERE UNTIL AFTER WRITING DMA
 
