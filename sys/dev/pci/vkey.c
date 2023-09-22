@@ -631,7 +631,26 @@ fail:
 	if (created) bus_dmamap_destroy(sc->sc_dmat, cookie->map);
 	if (cookie) free(cookie, M_DEVBUF, 0);
 	return NULL;
+}
 
+void
+vkey_debug(struct vkey_softc *sc)
+{
+	// REQUIRES MUTEX
+	struct vkey_cookie *c;
+	log("VKEY DEBUG. ncmd=%u, nreplyfree=%u, nreplyalloc=%u",
+			sc->sc_ncmd, sc->sc_nreplyfree, sc->sc_ncmd + sc->sc_nreplyfree);
+	log("heads: cmd=%zu, reply=%zu, comp=%zu", sc->sc_dma.cmd.head, sc->sc_dma.reply.head, sc->sc_dma.comp.head);
+	log("COOKIES:");
+
+	unsigned ncmd = 0, nreply = 0;
+	RB_FOREACH(c, cookies, &sc->sc_cookies) {
+		log("  type=%d, cookie=%llu, index=%zu, [cmd: reply=%llu, replytype=%d, replylen=%zu], [reply: size=%zu]",
+				c->type, c->cookie, c->i, c->reply, c->replytype, c->replylen, c->size);
+		if (c->type == CMD) ncmd++;
+		if (c->type == REPLY) nreply++;
+	}
+	log("tree ncmd=%u, nreply=%u", ncmd, nreply);
 }
 
 int
@@ -681,7 +700,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	uint64_t cook = sc->sc_cookiegen++;
 	ensure(cook < reply_cookie, "cookie counter overflow! maybe the system has been on for too long...");
 
-	log("cookie: %llu, type: %u", cook, arg->vkey_cmd);
+	log("cookie: %llu, type: %u, cmdlen: %zu", cook, arg->vkey_cmd, cmduio.uio_resid);
 	while (true) {
 		log("ncmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree);
 		while (sc->sc_ncmd >= sc->sc_dma.cmd.count) {
@@ -737,6 +756,8 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 
 	// WE SHOULD NOT FAIL FROM HERE UNTIL AFTER WRITING DMA
 
+	vkey_debug(sc);
+
 	// we can always write, the device should be smart enough to handle concurrent write/completion/reply?
 
 	error = bus_dmamap_load_uio(sc->sc_dmat, uiomap, &cmduio, BUS_DMA_NOWAIT | BUS_DMA_WRITE);
@@ -764,6 +785,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	bus_dmamap_sync(sc->sc_dmat, uiomap, 0, uiomap->dm_mapsize, BUS_DMASYNC_PREWRITE);
 	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_PREWRITE);
 	vkey_dmamap_sync(sc, REPLY, -1, BUS_DMASYNC_PREREAD);
+	vkey_dmamap_sync(sc, COMP, -1, BUS_DMASYNC_PREREAD);
 
 	desc->owner = DEVICE;
 
@@ -782,6 +804,8 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 			ensure(!error, "sleep disturbed with code %d", error);
 	} while (cmd->done == false);
 
+	vkey_debug(sc);
+
 	log("received reply on cookie %llu", cmd->reply);
 	struct vkey_cookie key = { .cookie = cmd->reply, .type = REPLY };
 	reply = RB_FIND(cookies, &sc->sc_cookies, &key);
@@ -793,7 +817,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 
 	if (cmd->replylen > reply->size) {
 		*bounce = cmd->replylen;
-		ensure(cmd->replylen <= reply->size, "reply size %zu exceeds allocated buffer size %zu", cmd->replylen, reply->size);
+		ensure(cmd->replylen <= reply->size, "reply size %zu exceeds driver buffer size %zu", cmd->replylen, reply->size);
 	}
 
 	caddr_t replyptr;
@@ -805,7 +829,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	size_t oldresid = replyuio.uio_resid;
 	if (!(arg->vkey_flags & VKEY_FLAG_TRUNC_OK)) {
 		ret = EFBIG;
-		ensure(oldresid >= cmd->replylen, "reply too big! reply is %zu but buffer is only %zu", cmd->replylen, oldresid);
+		ensure(oldresid >= cmd->replylen, "reply too big! reply is %zu but user buffer is only %zu", cmd->replylen, oldresid);
 		ret = EIO;
 	}
 
@@ -886,9 +910,9 @@ fail:
 		rep2->ptr3 = rep->ptr3;
 		rep2->ptr4 = rep->ptr4;
 
-		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_PREWRITE);
+		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 		rep2->owner = DEVICE;
-		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_PREWRITE);
+		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 
 		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 		log("DBELL: reply %zu", reply->i);
@@ -1021,8 +1045,9 @@ vkey_intr(void *arg)
 			wakeup(&cmd->done);
 		}
 
+		vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 		comp->owner = DEVICE;
-		vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_PREWRITE);
+		vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 
 		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 		log("... CPDBELL: %zu", h);
