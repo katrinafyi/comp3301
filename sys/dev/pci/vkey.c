@@ -751,25 +751,32 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	// ensure(reply, "reply cookie not found in tree. maybe no reply?");
 	log("reply cookie: %p", reply);
 
+	// XXX leave mutex before performing large copies.
+	mtx_leave(&sc->sc_mtx);
+	mutexed = false;
+
 	caddr_t replyptr;
 	error = bus_dmamem_map(sc->sc_dmat, reply->segs, reply->nsegs, replysize, &replyptr, BUS_DMA_NOWAIT);
 	ensure2(replymap, !error, "reply dmamem_map");
 
-	bus_dmamap_sync(sc->sc_dmat, reply->map, 0, cmd->replylen, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(sc->sc_dmat, reply->map, 0, replysize, BUS_DMASYNC_POSTREAD);
 
 	size_t oldresid = replyuio.uio_resid;
+	if (!(arg->vkey_flags & VKEY_FLAG_TRUNC_OK)) {
+		ret = EFBIG;
+		ensure(oldresid >= cmd->replylen, "reply too big! reply is %zu but buffer is only %zu", cmd->replylen, oldresid);
+		ret = EIO;
+	}
+
 	log("moving %zu bytes into a buffer of size %zu", cmd->replylen, oldresid);
 	error = uiomove(replyptr, cmd->replylen, &replyuio);
 	ensure(!error, "uiomove faulted");
 	size_t written = oldresid - replyuio.uio_resid;
 	log("... wrote %zu bytes", written);
 
-	arg->vkey_reply = reply->type;
+	arg->vkey_reply = cmd->replytype;
+	arg->vkey_rlen = cmd->replylen;
 
-	ret = EFBIG;
-	if (!(arg->vkey_flags & VKEY_FLAG_TRUNC_OK)) {
-		ensure(written == cmd->replylen, "reply too big! wrote %zu bytes", written);
-	}
 	ret = 0;
 
 	// XXX if has reply data, obtain from reply cookie.
@@ -778,6 +785,8 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	
 	log("success :3");
 fail:
+	// cleanup operations require mutex!
+	if (!mutexed) mtx_enter(&sc->sc_mtx);
 	if (replymap) bus_dmamem_unmap(sc->sc_dmat, replyptr, cmd->replylen);
 	// if we read a reply, we will recycle the reply buffer back to the
 	// head of the ring for re-use. this is not needed if we didn't read a reply
