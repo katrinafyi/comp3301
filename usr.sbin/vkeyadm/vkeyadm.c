@@ -37,7 +37,7 @@
 #include "authfd.h"
 #include "log.h"
 
-#define	VKEY_MAX_MSG	16384
+#define	VKEY_MAX_MSG	(2*16384)
 #define	VKEY_DEVFMT	"/dev/vkey%u"
 #define	VKEY_MAXDEV	8
 

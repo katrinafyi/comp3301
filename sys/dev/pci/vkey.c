@@ -475,7 +475,7 @@ fail:
 
 struct vkey_softc *
 vkey_lookup(dev_t dev) {
-	printf("vkey %d lookup, %d, %d\n", dev, major(dev), minor(dev));
+	// printf("vkey %d lookup, %d, %d\n", dev, major(dev), minor(dev));
 	ensure(major(dev) == 101, "major");
 
 	struct vkey_softc *sc = (void *)device_lookup(&vkey_cd, minor(dev));
@@ -540,7 +540,7 @@ struct vkey_cookie *
 vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook, size_t replysize, bus_dmamap_t map)
 {
 	int error = 0;
-	bool created = false, alloced = false, loaded = false;
+	bool created = false, alloced = false, loaded = false, incremented = false;
 	struct vkey_cookie *cookie = NULL;
 
 	ensure(ring == CMD || ring == REPLY, "invalid ring in alloc, cannot make cookie for completions");
@@ -554,7 +554,7 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook, size_
 
 	// committed to allocation
 	int index = vkey_ring_usable(sc, ring);
-	ensure(index >= 0, "BIG FAIL. usable");
+	ensure2(incremented, index >= 0, "BIG FAIL. usable");
 
 	cook += ring == REPLY ? reply_cookie : 0;
 
@@ -622,6 +622,10 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook, size_
 	RB_INSERT(cookies, &sc->sc_cookies, cookie);
 	return cookie;
 fail: 
+	if (incremented) {
+		sc->sc_dma.reply.head--;
+		sc->sc_dma.reply.head %= sc->sc_dma.reply.count;
+	}
 	if (loaded) bus_dmamap_unload(sc->sc_dmat, cookie->map);
 	if (alloced) bus_dmamem_free(sc->sc_dmat, cookie->segs, cookie->nsegs);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, cookie->map);
@@ -768,7 +772,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	sc->sc_bar->dbell = cmd->i;
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 
-	// vkey_dmamap_sync(sc, REPLY, -1, BUS_DMASYNC_POSTREAD);
+	vkey_dmamap_sync(sc, REPLY, -1, BUS_DMASYNC_POSTREAD);
 	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_sync(sc->sc_dmat, uiomap, 0, uiomap->dm_mapsize, BUS_DMASYNC_POSTWRITE);
 
@@ -944,6 +948,7 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		vi = (void *)data;
 		vi->vkey_major = sc->sc_bar->vmaj;
 		vi->vkey_major = sc->sc_bar->vmin;
+		ret = 0;
 		break;
 	case VKEYIOC_CMD:
 		while (bounce != 0) {
