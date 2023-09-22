@@ -505,7 +505,7 @@ vkeyclose(dev_t dev, int flag, int mode, struct proc *p)
 	mtx_enter(&sc->sc_mtx);
 	while (sc->sc_ncmd > 0) {
 		// XXX don't forget to wakeup when decrementing ncmd
-		ensure(msleep_nsec(&sc->sc_ncmd, &sc->sc_mtx, PCATCH | PRIBIO, "vkeyclose sc_ncmd", INFSLP),
+		ensure(0 == msleep_nsec(&sc->sc_ncmd, &sc->sc_mtx, PCATCH | PRIBIO, "vkeyclose sc_ncmd", INFSLP),
 				"awoken");
 	}
 	mtx_leave(&sc->sc_mtx);
@@ -622,7 +622,7 @@ int
 vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 {
 	int error = EIO;
-	bool mutexed = false, created = false, loaded = false;
+	bool mutexed = false, created = false, loaded = false, incremented = false;
 	struct vkey_cookie *cmd = NULL, *reply = NULL;
 
 	struct uio uio;
@@ -653,7 +653,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 
 	while (sc->sc_ncmd >= sc->sc_dma.cmd.count) {
 		// XXX don't forget to wakeup when decrementing ncmd
-		ensure(msleep_nsec(&sc->sc_ncmd, &sc->sc_mtx, PCATCH | PRIBIO, "vkey sc_ncmd", INFSLP),
+		ensure(0 == msleep_nsec(&sc->sc_ncmd, &sc->sc_mtx, PCATCH | PRIBIO, "vkey sc_ncmd", INFSLP),
 				"awoken");
 	}
 	ensure(sc->sc_ncmd < sc->sc_dma.cmd.count, "BIG FAILURE. spin lock invariant failed");
@@ -676,6 +676,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	sc->sc_nreplyfree--;
 
 	ensure(sc->sc_nreplyfree >= 0, "invariant failure!");
+	incremented = true;
 
 	// WE SHOULD NOT FAIL FROM HERE UNTIL AFTER WRITING DMA
 
@@ -718,8 +719,9 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_POSTWRITE);
 
 	do {
-		ensure(msleep_nsec(&cmd->done, &sc->sc_mtx, PCATCH | PRIBIO, "vkey done wait", INFSLP),
-				"sleep disturbed");
+		error = msleep_nsec(&cmd->done, &sc->sc_mtx, PCATCH | PRIBIO, "vkey done wait", INFSLP);
+		if (error)
+			ensure(!error, "sleep disturbed with code %d", error);
 	} while (cmd->done == false);
 
 	log("received reply on cookie %llu", cmd->reply);
@@ -785,10 +787,13 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 		RB_INSERT(cookies, &sc->sc_cookies, reply);
 	}
 
-	// return to pool.
-	sc->sc_ncmd--;
-	sc->sc_nreplyfree++;
 fail:
+	if (incremented) {
+		// return to pool.
+		sc->sc_ncmd--;
+		sc->sc_nreplyfree++;
+		wakeup(&sc->sc_ncmd);
+	}
 	if (reply) {
 		// bus_dmamap_unload(sc->sc_dmat, reply->map);
 		// bus_dmamem_free(sc->sc_dmat, reply->segs, reply->nsegs);
@@ -850,8 +855,8 @@ vkey_intr(void *arg)
 			ensure(i > 0, "processed zero completions. interrupt fired too early?");
 			break;
 		}
-		log("processing completion index %zu, type %d, cmd %llu, reply %llu",
-				h, comp->type, comp->cmd_cookie, comp->reply_cookie);
+		log("processing completion (%u) index %zu, type %d, cmd %llu, reply %llu",
+				i, h, comp->type, comp->cmd_cookie, comp->reply_cookie);
 
 		struct vkey_cookie key = { .cookie = comp->cmd_cookie, .type = CMD };
 		struct vkey_cookie *cmd = RB_FIND(cookies, &sc->sc_cookies, &key);
