@@ -268,6 +268,7 @@ vkey_check(struct vkey_softc *sc) {
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE | BUS_SPACE_BARRIER_READ);
 	return true;
 fail:
+	log("fault! flags: 0x%x", *(int32_t *)errs);
 	sc->sc_attached = false;
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE | BUS_SPACE_BARRIER_READ);
 	return false;
@@ -846,14 +847,14 @@ vkey_intr(void *arg)
 	bool mutexed = false;
 
 	struct vkey_softc *sc = arg;
-	log("vkey_intr enter");
+	log("vkey_intr enter, h=%zu", sc->sc_dma.comp.head);
 
 	ensure(vkey_check(sc), "check");
 
 	mtx_enter(&sc->sc_mtx);
 	mutexed = true;
 	
-	sc->sc_dma.comp.head = 0;
+	// sc->sc_dma.comp.head = 0;
 	for (nprocessed = 0; ; nprocessed++) {
 		size_t h = sc->sc_dma.comp.head;
 		sc->sc_dma.comp.head++;
@@ -887,16 +888,19 @@ vkey_intr(void *arg)
 			cmd->reply = comp->reply_cookie;
 			cmd->done = true;
 
-			vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
-			log("... CPDBELL: %zu", h);
-			sc->sc_bar->cpdbell = h;
-			vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
-
 			wakeup(&cmd->done);
 		}
+
+		comp->owner = DEVICE;
+		vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_PREWRITE);
+
+		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+		log("... CPDBELL: %zu", h);
+		sc->sc_bar->cpdbell = h;
+		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 	}
 fail:
-	log("vkey_intr leave (processed %u)", nprocessed);
+	log("vkey_intr leave, h=%zu (processed %u)", sc->sc_dma.comp.head, nprocessed);
 	if (mutexed) mtx_leave(&sc->sc_mtx);
 	return 0;
 	// !!! DO NOT return rings to HOST owner here. let ioctl do that to ensure it has read.
