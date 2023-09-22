@@ -24,7 +24,7 @@
 do {\
 	*(&(flag)) = (cond);\
 	if (!(flag)) {\
-		log(msg ": assertion `%s' failure! ", ##__VA_ARGS__, STR(cond));\
+		log(msg ": assertion `%s' failed! ", ##__VA_ARGS__, STR(cond));\
 		goto fail;\
 	}\
 } while (0)
@@ -510,6 +510,8 @@ vkeyclose(dev_t dev, int flag, int mode, struct proc *p)
 	}
 	mtx_leave(&sc->sc_mtx);
 
+	vkey_check(sc);
+
 	return (0);
 fail:
 	log("error during vkey close. squashing...");
@@ -650,7 +652,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	ensure(cook < reply_cookie, "cookie counter overflow! maybe the system has been on for too long...");
 
 	log("cookie: %llu", cook);
-
+	log("ncmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree);
 	while (sc->sc_ncmd >= sc->sc_dma.cmd.count) {
 		// XXX don't forget to wakeup when decrementing ncmd
 		ensure(0 == msleep_nsec(&sc->sc_ncmd, &sc->sc_mtx, PCATCH | PRIBIO, "vkey sc_ncmd", INFSLP),
@@ -674,6 +676,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	log("index: %zu", cmd->i);
 	sc->sc_ncmd++;
 	sc->sc_nreplyfree--;
+	log("ncmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree);
 
 	ensure(sc->sc_nreplyfree >= 0, "invariant failure!");
 	incremented = true;
@@ -712,6 +715,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	desc->owner = DEVICE;
 
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+	log("DBELL: %zu", cmd->i);
 	sc->sc_bar->dbell = cmd->i;
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 
@@ -807,6 +811,7 @@ fail:
 	}
 	if (mutexed) mtx_leave(&sc->sc_mtx);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, uiomap);
+	log("ncmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree);
 	return error;
 }
 
@@ -827,7 +832,6 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		vi->vkey_major = sc->sc_bar->vmin;
 		return 0;
 	case VKEYIOC_CMD:
-		printf("vkey cmd unhandled\n");
 		return vkeyioctl_cmd(sc, p, (void *)data);
 	}
 	assert(0 && "vkeyioctl unhandled");
@@ -837,12 +841,13 @@ static int
 vkey_intr(void *arg)
 {
 	struct vkey_softc *sc = arg;
+	log("vkey_intr enter");
 
 	vkey_check(sc);
 
 	mtx_enter(&sc->sc_mtx);
 
-	for (unsigned i = 0; ; i++) {
+	for (unsigned nprocessed = 0; ; nprocessed++) {
 		size_t h = sc->sc_dma.comp.head;
 		sc->sc_dma.comp.head++;
 		sc->sc_dma.comp.head %= sc->sc_dma.comp.count;
@@ -852,11 +857,12 @@ vkey_intr(void *arg)
 		struct vkey_comp *comp = sc->sc_dma.comp.ptr.comps + h;
 		if (comp->owner != HOST) {
 			// finished processing completions for now
-			ensure(i > 0, "processed zero completions. interrupt fired too early?");
+			ensure(nprocessed > 0, "processed zero completions. interrupt fired too early?");
 			break;
 		}
-		log("processing completion (%u) index %zu, type %d, cmd %llu, reply %llu",
-				i, h, comp->type, comp->cmd_cookie, comp->reply_cookie);
+		log("processing completion (%u) index %zu, type %d, cmd %llu, reply %llu, replylen=%u, owner=%x",
+				nprocessed, h, comp->type, comp->cmd_cookie, comp->reply_cookie,
+				comp->msglen, comp->owner);
 
 		struct vkey_cookie key = { .cookie = comp->cmd_cookie, .type = CMD };
 		struct vkey_cookie *cmd = RB_FIND(cookies, &sc->sc_cookies, &key);
@@ -865,10 +871,10 @@ vkey_intr(void *arg)
 		key = (struct vkey_cookie) { .cookie = comp->reply_cookie, .type = REPLY };
 		struct vkey_cookie *reply = RB_FIND(cookies, &sc->sc_cookies, &key);
 		if (comp->reply_cookie == 0 && comp->msglen == 0) {
-			log("completion without reply");
+			log("... completion without reply");
 		} else {
 			ensure(reply, "reply not found when expected");
-			log("reply cookie %llu index %zu", reply->cookie, reply->i);
+			log("... reply cookie %llu index %zu", reply->cookie, reply->i);
 		}
 
 		cmd->replylen = comp->msglen;
@@ -876,12 +882,14 @@ vkey_intr(void *arg)
 		cmd->done = true;
 
 		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+		log("... CPDBELL: %zu", h);
 		sc->sc_bar->cpdbell = h;
 		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 
 		wakeup(&cmd->done);
 	}
 fail:
+	log("vkey_intr leave");
 	mtx_leave(&sc->sc_mtx);
 	return 0;
 	// !!! DO NOT return rings to HOST owner here. let ioctl do that to ensure it has read.
