@@ -154,9 +154,11 @@ struct vkey_cookie {
 	size_t i; // index within respective ring
 	uint64_t time;   // creation time of this cookie
 
+	// SET BY COMPLETION
 	bool done; // command only: done wakeup flag.
 	uint64_t reply; // command only: cookie of corresponding reply.
 	size_t replylen; // command only: total size of reply (possibly exceeding buffer size)
+	uint8_t replytype; // command only: type of reply message
 
 	// bus_dma_segment_t segs[4]; // reply only: only ptr and map accessed.
 	bus_dmamap_t map; // reply only: buffer for reply.
@@ -753,16 +755,19 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	error = bus_dmamem_map(sc->sc_dmat, reply->segs, reply->nsegs, replysize, &replyptr, BUS_DMA_NOWAIT);
 	ensure2(replymap, !error, "reply dmamem_map");
 
+	bus_dmamap_sync(sc->sc_dmat, reply->map, 0, cmd->replylen, BUS_DMASYNC_POSTREAD);
 
 	size_t oldresid = replyuio.uio_resid;
 	log("moving %zu bytes into a buffer of size %zu", cmd->replylen, oldresid);
 	error = uiomove(replyptr, cmd->replylen, &replyuio);
 	ensure(!error, "uiomove faulted");
-	log("... %zu bytes remain", replyuio.uio_resid);
+	size_t written = oldresid - replyuio.uio_resid;
+	log("... wrote %zu bytes", written);
+
+	arg->vkey_reply = reply->type;
 
 	ret = EFBIG;
 	if (!(arg->vkey_flags & VKEY_FLAG_TRUNC_OK)) {
-		size_t written = oldresid - replyuio.uio_resid;
 		ensure(written == cmd->replylen, "reply too big! wrote %zu bytes", written);
 	}
 	ret = 0;
@@ -912,6 +917,7 @@ vkey_intr(void *arg)
 			ensure(reply, "reply not found when expected");
 			log("... reply cookie %llu index %zu", reply->cookie, reply->i);
 
+			cmd->replytype = comp->type;
 			cmd->replylen = comp->msglen;
 			cmd->reply = comp->reply_cookie;
 			cmd->done = true;
