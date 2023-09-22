@@ -259,12 +259,12 @@ vkey_check(struct vkey_softc *sc) {
 	struct vkey_flags *errs = &sc->sc_bar->flags;
 
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE | BUS_SPACE_BARRIER_READ);
-	ensure(!errs->fltb, "fault reading from bar");
-	ensure(!errs->fltr, "fault reading from ring");
-	ensure(!errs->drop, "insufficient reply buffer");
-	ensure(!errs->ovf, "owner mismatch or cpdbell wrong");
-	ensure(!errs->seq, "sequencing error");
-	ensure(!errs->hwerr, "misc hardware error");
+	ensure(!errs->fltb,  "DEVICE FAULT: fault reading from bar");
+	ensure(!errs->fltr,  "DEVICE FAULT: fault reading from ring");
+	ensure(!errs->drop,  "DEVICE FAULT: insufficient reply buffer");
+	ensure(!errs->ovf,   "DEVICE FAULT: owner mismatch or cpdbell wrong");
+	ensure(!errs->seq,   "DEVICE FAULT: sequencing error");
+	ensure(!errs->hwerr, "DEVICE FAULT: misc hardware error");
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE | BUS_SPACE_BARRIER_READ);
 	return true;
 fail:
@@ -475,9 +475,9 @@ vkey_lookup(dev_t dev) {
 	ensure(major(dev) == 101, "major");
 
 	struct vkey_softc *sc = (void *)device_lookup(&vkey_cd, minor(dev));
-	ensure(sc && sc->sc_attached, "sc %p", sc);
+	// ensure(sc && sc->sc_attached, "sc %p", sc);
 
-	return sc;
+	return sc && sc->sc_attached ? sc : NULL;
 fail:
 	return NULL;
 }
@@ -486,9 +486,9 @@ int
 vkeyopen(dev_t dev, int mode, int flags, struct proc *p)
 {
 	struct vkey_softc *sc = vkey_lookup(dev);
-	ensure(sc, "open");
+	if (!sc) return ENXIO;
 
-	vkey_check(sc);
+	ensure(vkey_check(sc), "check");
 
 	return (0);
 fail:
@@ -510,7 +510,7 @@ vkeyclose(dev_t dev, int flag, int mode, struct proc *p)
 	}
 	mtx_leave(&sc->sc_mtx);
 
-	vkey_check(sc);
+	ensure(vkey_check(sc), "check");
 
 	return (0);
 fail:
@@ -603,6 +603,7 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 		vkey_dmamap_sync(sc, REPLY, index, BUS_DMASYNC_PREWRITE);
 
 		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+		log("DBELL: reply %d", index);
 		sc->sc_bar->dbell = reply_mask | index;
 		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 
@@ -651,7 +652,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	uint64_t cook = sc->sc_cookiegen++;
 	ensure(cook < reply_cookie, "cookie counter overflow! maybe the system has been on for too long...");
 
-	log("cookie: %llu", cook);
+	log("cookie: %llu, type: %u", cook, arg->vkey_cmd);
 	log("ncmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree);
 	while (sc->sc_ncmd >= sc->sc_dma.cmd.count) {
 		// XXX don't forget to wakeup when decrementing ncmd
@@ -668,6 +669,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 		struct vkey_cookie *reply = vkey_ring_alloc(sc, REPLY, cook);
 		ensure(reply, "reply alloc");
 		sc->sc_nreplyfree++;
+		log("allocated new reply. now, nreplyfree=%u", sc->sc_nreplyfree);
 	}
 
 	// claim cmd descriptor
@@ -687,7 +689,6 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 
 	error = bus_dmamap_load_uio(sc->sc_dmat, uiomap, &uio, BUS_DMA_NOWAIT | BUS_DMA_WRITE);
 	ensure2(loaded, !error, "load_uio");
-
 
 	struct vkey_cmd *desc = sc->sc_dma.cmd.ptr.cmds + cmd->i;
 
@@ -783,6 +784,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_PREWRITE);
 
 		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+		log("DBELL: reply %zu", reply->i);
 		sc->sc_bar->dbell = reply_mask | reply->i;
 		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 
@@ -840,14 +842,18 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 static int
 vkey_intr(void *arg)
 {
+	unsigned nprocessed = 0;
+	bool mutexed = false;
+
 	struct vkey_softc *sc = arg;
 	log("vkey_intr enter");
 
-	vkey_check(sc);
+	ensure(vkey_check(sc), "check");
 
 	mtx_enter(&sc->sc_mtx);
+	mutexed = true;
 
-	for (unsigned nprocessed = 0; ; nprocessed++) {
+	for (nprocessed = 0; ; nprocessed++) {
 		size_t h = sc->sc_dma.comp.head;
 		sc->sc_dma.comp.head++;
 		sc->sc_dma.comp.head %= sc->sc_dma.comp.count;
@@ -857,7 +863,7 @@ vkey_intr(void *arg)
 		struct vkey_comp *comp = sc->sc_dma.comp.ptr.comps + h;
 		if (comp->owner != HOST) {
 			// finished processing completions for now
-			ensure(nprocessed > 0, "processed zero completions. interrupt fired too early?");
+			// ensure(nprocessed > 0, "processed zero completions. interrupt fired too early?");
 			break;
 		}
 		log("processing completion (%u) index %zu, type %d, cmd %llu, reply %llu, replylen=%u, owner=%x",
@@ -889,8 +895,8 @@ vkey_intr(void *arg)
 		wakeup(&cmd->done);
 	}
 fail:
-	log("vkey_intr leave");
-	mtx_leave(&sc->sc_mtx);
+	log("vkey_intr leave (processed %u)", nprocessed);
+	if (mutexed) mtx_leave(&sc->sc_mtx);
 	return 0;
 	// !!! DO NOT return rings to HOST owner here. let ioctl do that to ensure it has read.
 }
