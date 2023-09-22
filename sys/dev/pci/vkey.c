@@ -538,7 +538,7 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 	ensure(ring == CMD || ring == REPLY, "invalid ring in alloc, cannot make cookie for completions");
 	struct vkey_dma *dma = vkey_dma(sc, ring);
 
-	int n = ring == CMD ? sc->sc_ncmd : sc->sc_nreplyfree;
+	int n = ring == CMD ? sc->sc_ncmd : sc->sc_ncmd + sc->sc_nreplyfree;
 	ensure(n < dma->count, "over-allocating in ring %d", ring);
 
 	cookie = malloc(sizeof(struct vkey_cookie), M_DEVBUF, M_ZERO | M_NOWAIT);
@@ -546,7 +546,7 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 
 	// committed to allocation
 	int index = vkey_ring_usable(sc, ring);
-	ensure(index >= 0, "usable");
+	ensure(index >= 0, "BIG FAIL. usable");
 
 	cook += ring == REPLY ? reply_cookie : 0;
 
