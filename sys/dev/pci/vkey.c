@@ -829,9 +829,12 @@ fail:
 	if (replymapped) bus_dmamem_unmap(sc->sc_dmat, replyptr, reply->size);
 
 	// XXX if this is a special reply buffer, reclaim it.
-	if (reply && reply->size != defaultreplysize) {
+	if (reply && (reply->size != defaultreplysize || *bounce)) {
 		recycle = false;
-		log("destroying oversize reply buffer of size %zu", reply->size);
+		log("destroying reply buffer of size %zu", reply->size);
+		if (reply->size != defaultreplysize) log("... due to oversize");
+		if (*bounce) log("... due to requiring bounce buffer");
+
 		mtx_enter(&sc->sc_mtx);
 		RB_REMOVE(cookies, &sc->sc_cookies, reply);
 		mtx_leave(&sc->sc_mtx);
@@ -929,26 +932,30 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	printf("vkey %d ioctl\n", dev);
 	struct vkey_info_arg *vi;
 	size_t bounce = defaultreplysize;
+	unsigned i = 0;
 
 	struct vkey_softc *sc = (void *)device_lookup(&vkey_cd, minor(dev));
 	if (sc == NULL)
 		return ENXIO;
 
-	int ret = EIO;
+	int ret = EINVAL;
 	switch (cmd) {
 	case VKEYIOC_GET_INFO:
 		vi = (void *)data;
 		vi->vkey_major = sc->sc_bar->vmaj;
 		vi->vkey_major = sc->sc_bar->vmin;
-		return 0;
+		break;
 	case VKEYIOC_CMD:
 		while (bounce != 0) {
 			ret = vkeyioctl_cmd(sc, p, (void *)data, &bounce);
 			if (bounce) log("bouncing! to size %zu", bounce);
+			i++;
+			ensure(i <= 5, "aborting excessive bouncing");
 		}
-		return ret;
+		break;
 	}
-	assert(0 && "vkeyioctl unhandled");
+fail:
+	return ret;
 }
 
 static int
