@@ -649,7 +649,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	replyuio.uio_iovcnt = NITEMS(arg->vkey_out);
 	replyuio.uio_resid = 0;
 	for (unsigned i = 0; i < NITEMS(arg->vkey_out); i++)
-		cmduio.uio_resid += arg->vkey_out[i].iov_len;
+		replyuio.uio_resid += arg->vkey_out[i].iov_len;
 	replyuio.uio_rw = UIO_READ; // XXX SURELY NOT
 	replyuio.uio_segflg = UIO_USERSPACE;
 	replyuio.uio_procp = p;
@@ -753,15 +753,19 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	error = bus_dmamem_map(sc->sc_dmat, reply->segs, reply->nsegs, replysize, &replyptr, BUS_DMA_NOWAIT);
 	ensure2(replymap, !error, "reply dmamem_map");
 
-	log("moving %zu bytes into a buffer of size %zu", cmd->replylen, replyuio.uio_resid);
+
+	size_t oldresid = replyuio.uio_resid;
+	log("moving %zu bytes into a buffer of size %zu", cmd->replylen, oldresid);
 	error = uiomove(replyptr, cmd->replylen, &replyuio);
 	ensure(!error, "uiomove faulted");
 	log("... %zu bytes remain", replyuio.uio_resid);
 
 	ret = EFBIG;
-	if (!(arg->vkey_flags & VKEY_FLAG_TRUNC_OK))
-		ensure(replyuio.uio_resid == 0, "reply too big!");
-	ret = EIO;
+	if (!(arg->vkey_flags & VKEY_FLAG_TRUNC_OK)) {
+		size_t written = oldresid - replyuio.uio_resid;
+		ensure(written == cmd->replylen, "reply too big! wrote %zu bytes", written);
+	}
+	ret = 0;
 
 	// XXX if has reply data, obtain from reply cookie.
 	// XXX free reply cookie
@@ -837,6 +841,7 @@ fail:
 	if (mutexed) mtx_leave(&sc->sc_mtx);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, uiomap);
 	log("ncmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree);
+	log("return with error=%d", ret);
 	return ret;
 }
 
