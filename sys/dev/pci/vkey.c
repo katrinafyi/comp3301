@@ -531,6 +531,8 @@ vkeyread(dev_t dev, struct uio *uio, int flags)
 	return (EOPNOTSUPP);
 }
 
+const size_t replysize = 16 * 1024 * sizeof(char);
+
 struct vkey_cookie *
 vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 {
@@ -562,18 +564,17 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook)
 
 	if (ring == REPLY) {
 		int nitems = 0;
-		const size_t size = 16 * 1024 * sizeof(char);
-		error = bus_dmamap_create(sc->sc_dmat, size, 4, size, 0, BUS_DMA_ALLOCNOW | BUS_DMA_NOWAIT, &cookie->map);
+		error = bus_dmamap_create(sc->sc_dmat, replysize, 4, replysize, 0, BUS_DMA_ALLOCNOW | BUS_DMA_NOWAIT, &cookie->map);
 		ensure2(created, !error, "create");
 
-		error = bus_dmamem_alloc(sc->sc_dmat, size, 0, 0,
+		error = bus_dmamem_alloc(sc->sc_dmat, replysize, 0, 0,
 				cookie->segs, NITEMS(cookie->segs), &nitems,
 				BUS_DMA_NOWAIT);
 		ensure2(alloced, !error, "alloc");
 		cookie->nsegs = nitems;
 		// ensure(nitems == NITEMS(cookie->segs), "nitems");
 
-		error = bus_dmamap_load_raw(sc->sc_dmat, cookie->map, cookie->segs, cookie->nsegs, size, BUS_DMA_NOWAIT);
+		error = bus_dmamap_load_raw(sc->sc_dmat, cookie->map, cookie->segs, cookie->nsegs, replysize, BUS_DMA_NOWAIT);
 		ensure2(loaded, !error, "load_raw");
 
 		struct vkey_cmd *reply = sc->sc_dma.reply.ptr.replies + index;
@@ -749,7 +750,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	log("reply cookie: %p", reply);
 
 	caddr_t replyptr;
-	error = bus_dmamem_map(sc->sc_dmat, reply->segs, reply->nsegs, cmd->replylen, &replyptr, BUS_DMA_NOWAIT);
+	error = bus_dmamem_map(sc->sc_dmat, reply->segs, reply->nsegs, replysize, &replyptr, BUS_DMA_NOWAIT);
 	ensure2(replymap, !error, "reply dmamem_map");
 
 	log("moving %zu bytes into a buffer of size %zu", cmd->replylen, replyuio.uio_resid);
