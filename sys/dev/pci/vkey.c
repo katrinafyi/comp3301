@@ -308,7 +308,7 @@ vkey_dmamap_sync(struct vkey_softc *sc, enum vkey_ring ring, long index, int syn
 }
 
 
-const unsigned shift = 6;
+const unsigned shift = 0;
 const unsigned count = 1 << shift; // ring size
 
 bool
@@ -693,6 +693,9 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	error = bus_dmamap_create(sc->sc_dmat, cmduio.uio_resid, 4, cmduio.uio_resid, 0, BUS_DMA_ALLOCNOW | BUS_DMA_64BIT | BUS_DMA_WAITOK, &uiomap);
 	ensure2(created, !error, "bus_dmamap_create");
 
+	error = bus_dmamap_load_uio(sc->sc_dmat, uiomap, &cmduio, BUS_DMA_WAITOK | BUS_DMA_WRITE);
+	ensure2(loaded, !error, "load_uio");
+
 	// *************** MUTEX ENTER  ***************
 	mtx_enter(&sc->sc_mtx);
 	mutexed = true;
@@ -760,9 +763,6 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 
 	// we can always write, the device should be smart enough to handle concurrent write/completion/reply?
 
-	error = bus_dmamap_load_uio(sc->sc_dmat, uiomap, &cmduio, BUS_DMA_NOWAIT | BUS_DMA_WRITE);
-	ensure2(loaded, !error, "load_uio");
-
 	struct vkey_cmd *desc = sc->sc_dma.cmd.ptr.cmds + cmd->i;
 
 	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_POSTREAD);
@@ -821,7 +821,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	}
 
 	caddr_t replyptr;
-	error = bus_dmamem_map(sc->sc_dmat, reply->segs, reply->nsegs, reply->size, &replyptr, BUS_DMA_NOWAIT);
+	error = bus_dmamem_map(sc->sc_dmat, reply->segs, reply->nsegs, reply->size, &replyptr, BUS_DMA_WAITOK);
 	ensure2(replymapped, !error, "reply dmamem_map");
 
 	bus_dmamap_sync(sc->sc_dmat, reply->map, 0, reply->size, BUS_DMASYNC_POSTREAD);
@@ -940,7 +940,6 @@ fail:
 		// bus_dmamap_destroy(sc->sc_dmat, reply->map);
 		// free(reply, M_DEVBUF, 0);
 	}
-	if (loaded) bus_dmamap_unload(sc->sc_dmat, uiomap);
 	if (cmd) {
 		mtx_enter(&sc->sc_mtx);
 		RB_REMOVE(cookies, &sc->sc_cookies, cmd);
@@ -948,6 +947,7 @@ fail:
 		free(cmd, M_DEVBUF, sizeof(*cmd));
 	}
 	if (replymap) bus_dmamap_destroy(sc->sc_dmat, replymap);
+	if (loaded) bus_dmamap_unload(sc->sc_dmat, uiomap);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, uiomap);
 	log("ncmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree);
 	log("return with error=%d", ret);
