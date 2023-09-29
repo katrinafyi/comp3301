@@ -319,8 +319,8 @@ vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, si
 	bool created = false, alloced = false, mapped = false, loaded = false;
 
 	bool iscomp = dma == vkey_dma(sc, COMP);
-	dma->shift = 1; // XXX THE PLACE WHERE IT HAPPENS
-	if (iscomp) dma->shift *= 2;
+	dma->shift = 2; // XXX THE PLACE WHERE IT HAPPENS
+	if (iscomp) dma->shift += 1;
 	dma->count = 1 << dma->shift;
 	dma->esize = descsize;
 	size_t size = dma->count * descsize;
@@ -692,7 +692,7 @@ vkey_reply_recycle(struct vkey_softc *sc, struct vkey_cookie *reply, bool mustde
 		RB_REMOVE(cookies, &sc->sc_cookies, reply);
 
 		// release previous reply.
-		sc->sc_ncmd--;
+		sc->sc_nreplycmd--;
 
 		// invalidate old reply descriptor
 		volatile struct vkey_cmd *rep = sc->sc_dma.reply.as.replies + reply->i;
@@ -735,7 +735,7 @@ vkey_reply_recycle(struct vkey_softc *sc, struct vkey_cookie *reply, bool mustde
 		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_POSTWRITE);
 
 		// give descriptor back to this command. to be yielded later.
-		sc->sc_ncmd++; 
+		sc->sc_nreplycmd++; 
 
 		RB_INSERT(cookies, &sc->sc_cookies, reply);
 	}
@@ -797,7 +797,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 
 	log("cookie: %llu, type: %u, cmdlen: %zu", cook, arg->vkey_cmd, cmduio.uio_resid);
 	while (true) {
-		log("ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree, sc->sc_nreplyfree);
+		log("ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
 		while (sc->sc_nreplycmd >= sc->sc_dma.cmd.count) {
 			// XXX don't forget to wakeup when decrementing ncmd
 			ensure(0 == msleep_nsec(&sc->sc_nreplycmd, &sc->sc_mtx, PCATCH | PRIBIO, "vkey sc_ncmd", INFSLP),
@@ -846,7 +846,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	sc->sc_ncmd++;
 	sc->sc_nreplycmd++;
 	sc->sc_nreplyfree--;
-	log("ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree, sc->sc_nreplyfree);
+	log("ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
 
 	ensure(sc->sc_nreplyfree >= 0, "invariant failure!");
 	incremented = true;
@@ -972,7 +972,7 @@ fail:
 				sc->sc_nreplyfree++;
 			}
 		}
- 		wakeup(&sc->sc_nreplyfree);
+ 		wakeup(&sc->sc_nreplycmd);
 		wakeup(&sc->sc_ncmd);
 		mtx_leave(&sc->sc_mtx);
 	}
@@ -991,7 +991,7 @@ fail:
 	if (replymap) bus_dmamap_destroy(sc->sc_dmat, replymap);
 	if (loaded) bus_dmamap_unload(sc->sc_dmat, uiomap);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, uiomap);
-	log("ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree, sc->sc_nreplyfree);
+	log("ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
 	log("return with error=%d", ret);
 	return ret;
 }
@@ -1105,7 +1105,7 @@ vkey_intr(void *arg)
  				sc->sc_nreplyfree++;
  			}
  			wakeup(&sc->sc_ncmd);
- 			wakeup(&sc->sc_nreplyfree);
+ 			wakeup(&sc->sc_nreplycmd);
 			mtx_leave(&sc->sc_mtx);
 		}
 
