@@ -507,7 +507,7 @@ cmd_delay(int fd, int argc, char *argv[])
 
 	while ((ch = getopt(argc, argv, "t:")) != -1) {
 		switch (ch) {
-		case 'b':
+		case 't':
 			msec = strtonum(optarg, 1, UINT32_MAX, &errstr);
 			if (errstr != NULL) {
 				warnx("-t arg must be a number but is %s",
