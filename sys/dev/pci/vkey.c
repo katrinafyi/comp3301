@@ -144,7 +144,7 @@ struct vkey_dma {
 		volatile struct vkey_cmd *replies;
 		volatile struct vkey_comp *comps;
 		char *addr;
-	} ptr; // in attach
+	} as; // in attach
 };
 
 struct vkey_cookie {
@@ -318,7 +318,8 @@ vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, si
 	bool created = false, alloced = false, mapped = false, loaded = false;
 
 	bool iscomp = dma == vkey_dma(sc, COMP);
-	dma->shift = iscomp ? 2 : 1; // XXX THE PLACE WHERE IT HAPPENS
+	dma->shift = 1; // XXX THE PLACE WHERE IT HAPPENS
+	if (iscomp) dma->shift *= 2;
 	dma->count = 1 << dma->shift;
 	dma->esize = descsize;
 	size_t size = dma->count * descsize;
@@ -333,35 +334,35 @@ vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, si
 	ensure2(created, map && !error, "dmamap %s", name);
 
 	int nsegs;
-	ensure(dma->ptr.addr == NULL, "double assignment");
+	ensure(dma->as.addr == NULL, "double assignment");
 	error = bus_dmamem_alloc(sc->sc_dmat, size, 0, 0, dma->seg, 1, &nsegs, BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	ensure(!error, "dmamem alloc");
 	ensure2(alloced, nsegs == 1, "dmamem alloc");
 
 	// XXX IMPORTANT: the dm_seg fields cannot be used here. this requires a separate segment field.
-	error = bus_dmamem_map(sc->sc_dmat, dma->seg, 1, size, &dma->ptr.addr, BUS_DMA_WAITOK);
-	ensure2(mapped, !error && dma->ptr.addr, "dmamem map");
+	error = bus_dmamem_map(sc->sc_dmat, dma->seg, 1, size, &dma->as.addr, BUS_DMA_WAITOK);
+	ensure2(mapped, !error && dma->as.addr, "dmamem map");
 
 	// XXX THEN, load will assign a paddr for the DMA and store /this/ inside the dm_seg.
-	error = bus_dmamap_load(sc->sc_dmat, map, dma->ptr.addr, size, NULL, BUS_DMA_WAITOK);
+	error = bus_dmamap_load(sc->sc_dmat, map, dma->as.addr, size, NULL, BUS_DMA_WAITOK);
 	ensure2(loaded, !error, "dmamap load");
 	ensure(map->dm_mapsize == size, "mapsize");
 
 	for (unsigned i = 0; i < dma->count; i++) {
 		if (iscomp) {
-			dma->ptr.comps[i].owner = DEVICE;
+			dma->as.comps[i].owner = DEVICE;
 		} else {
-			dma->ptr.cmds[i].owner = iscomp ? DEVICE : HOST;
+			dma->as.cmds[i].owner = HOST;
 		}
 	}
 	bus_dmamap_sync(sc->sc_dmat, dma->map, 0, size, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	log("ring allocated for %s of size %zu (count=%u) at kaddr %p and paddr %p", name, size, dma->count, dma->ptr.addr, map->dm_segs);
+	log("ring allocated for %s of size %zu (count=%u) at kaddr %p and paddr %p", name, size, dma->count, dma->as.addr, map->dm_segs);
 
 	return true;
 fail:
 	if (loaded) bus_dmamap_unload(sc->sc_dmat, map);
-	if (mapped) bus_dmamem_unmap(sc->sc_dmat, dma->ptr.addr, map->dm_mapsize);
+	if (mapped) bus_dmamem_unmap(sc->sc_dmat, dma->as.addr, map->dm_mapsize);
 	if (alloced) bus_dmamem_free(sc->sc_dmat, map->dm_segs, map->dm_nsegs);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, map);
 	return false;
@@ -374,7 +375,7 @@ vkey_rings(struct vkey_softc *sc) {
 	ensure(vkey_ring_init(sc, "comp", &sc->sc_dma.comp, sizeof(struct vkey_comp)), "comp");
 
 	for (unsigned i = 0; i < sc->sc_dma.comp.count; i++) {
-		sc->sc_dma.comp.ptr.comps[i].owner = DEVICE;
+		sc->sc_dma.comp.as.comps[i].owner = DEVICE;
 	}
 
 	return true;
@@ -509,7 +510,7 @@ fail:
 int
 vkeyclose(dev_t dev, int flag, int mode, struct proc *p)
 {
-	log("vkey %d close\n", dev);
+	log("vkey %d close enter\n", dev);
 	struct vkey_softc *sc = vkey_lookup(dev);
 	ensure(sc != NULL, "close");
 
@@ -522,6 +523,7 @@ vkeyclose(dev_t dev, int flag, int mode, struct proc *p)
 	mtx_leave(&sc->sc_mtx);
 
 	ensure(vkey_check(sc), "check");
+	log("vkey %d close leave\n", dev);
 
 	return (0);
 fail:
@@ -590,7 +592,7 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook, size_
 		error = bus_dmamap_load_raw(sc->sc_dmat, cookie->map, cookie->segs, cookie->nsegs, replysize, BUS_DMA_NOWAIT);
 		ensure2(loaded, !error, "load_raw");
 
-		volatile struct vkey_cmd *reply = sc->sc_dma.reply.ptr.replies + index;
+		volatile struct vkey_cmd *reply = sc->sc_dma.reply.as.replies + index;
 
 		ensure(reply->owner == HOST, "owner incorrect");
 
@@ -692,7 +694,7 @@ vkey_reply_recycle(struct vkey_softc *sc, struct vkey_cookie *reply, bool mustde
 		sc->sc_ncmd--;
 
 		// invalidate old reply descriptor
-		volatile struct vkey_cmd *rep = sc->sc_dma.reply.ptr.replies + reply->i;
+		volatile struct vkey_cmd *rep = sc->sc_dma.reply.as.replies + reply->i;
 		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_POSTREAD);
 		rep->cookie = -1;
 		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_PREWRITE);
@@ -707,7 +709,7 @@ vkey_reply_recycle(struct vkey_softc *sc, struct vkey_cookie *reply, bool mustde
 		log("... new cookie %llu", reply->cookie);
 		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_POSTREAD);
 
-		volatile struct vkey_cmd *rep2 = sc->sc_dma.reply.ptr.replies + reply->i;
+		volatile struct vkey_cmd *rep2 = sc->sc_dma.reply.as.replies + reply->i;
 		rep2->cookie = reply->cookie;
 		rep2->len1 = rep->len1;
 		rep2->len2 = rep->len2;
@@ -852,7 +854,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 
 	// we can always write, the device should be smart enough to handle concurrent write/completion/reply?
 
-	volatile struct vkey_cmd *desc = sc->sc_dma.cmd.ptr.cmds + cmd->i;
+	volatile struct vkey_cmd *desc = sc->sc_dma.cmd.as.cmds + cmd->i;
 
 	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_POSTREAD);
 
@@ -1001,16 +1003,14 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	case VKEYIOC_GET_INFO:
 		vi = (void *)data;
 		vi->vkey_major = sc->sc_bar->vmaj;
-		vi->vkey_major = sc->sc_bar->vmin;
+		vi->vkey_minor = sc->sc_bar->vmin;
 		ret = 0;
 		break;
 	case VKEYIOC_CMD:
 		while (bounce != 0) {
 			ret = vkeyioctl_cmd(sc, p, (void *)data, &bounce);
 			ensure(!bounce, "blocked bounce. reply oversize, requires %zu bytes", bounce);
-			if (bounce) {
-				log("bouncing! to size %zu", bounce);
-			}
+			if (bounce) log("bouncing! to size %zu", bounce);
 			i++;
 			ensure(i <= 5, "aborting excessive bouncing");
 		}
@@ -1040,7 +1040,7 @@ vkey_intr(void *arg)
 
 		vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_POSTREAD);
 
-		volatile struct vkey_comp *comp = sc->sc_dma.comp.ptr.comps + h;
+		volatile struct vkey_comp *comp = sc->sc_dma.comp.as.comps + h;
 		if (comp->owner != HOST) {
 			// finished processing completions for now
 			log("stopped processing at owner=%x", comp->owner);
@@ -1090,6 +1090,7 @@ vkey_intr(void *arg)
 			mtx_enter(&sc->sc_mtx);
  			bool recycled = vkey_reply_recycle(sc, reply, false);
  			sc->sc_ncmd--;
+ 			wakeup(&sc->sc_ncmd);
  			if (recycled) sc->sc_nreplyfree++;
 			mtx_leave(&sc->sc_mtx);
 		}
@@ -1098,6 +1099,10 @@ vkey_intr(void *arg)
 fail:
 		if (h >= 0) {
 			vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_POSTREAD);
+			vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_PREWRITE);
+			comp->msglen = 0;
+			comp->type = 0;
+
 			vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_PREWRITE);
 			comp->owner = DEVICE;
 			// vkey_dmamap_sync(sc, COMP, -1, BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
