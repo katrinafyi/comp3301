@@ -672,9 +672,7 @@ vkey_reply_recycle(struct vkey_softc *sc, struct vkey_cookie *reply, bool mustde
 		if (reply->size != defaultreplysize) log("... due to oversize");
 		if (mustdestroy) log("... due to forced destroy");
 
-		mtx_enter(&sc->sc_mtx);
 		RB_REMOVE(cookies, &sc->sc_cookies, reply);
-		mtx_leave(&sc->sc_mtx);
 
 		bus_dmamap_unload(sc->sc_dmat, reply->map);
 		bus_dmamem_free(sc->sc_dmat, reply->segs, reply->nsegs);
@@ -688,7 +686,6 @@ vkey_reply_recycle(struct vkey_softc *sc, struct vkey_cookie *reply, bool mustde
 	// head of the ring for re-use. this is not needed if we didn't read a reply
 	// since the buffer will remain in its position ready to use.
 	if (reply) {
-		mtx_enter(&sc->sc_mtx);
 		RB_REMOVE(cookies, &sc->sc_cookies, reply);
 
 		// release previous reply.
@@ -738,7 +735,6 @@ vkey_reply_recycle(struct vkey_softc *sc, struct vkey_cookie *reply, bool mustde
 		sc->sc_ncmd++; 
 
 		RB_INSERT(cookies, &sc->sc_cookies, reply);
-		mtx_leave(&sc->sc_mtx);
 	}
 	return !!reply;
 fail:
@@ -954,13 +950,17 @@ fail:
 		log("... WARNING: command abandoned. not cleaning reply yet.");
 	}
 	if (completed) {
+		mtx_enter(&sc->sc_mtx);
 		recycled = vkey_reply_recycle(sc, reply, !!*bounce);
+		mtx_leave(&sc->sc_mtx);
 	}
 	if (incremented) {
-		// return to pool.
+		// return to pool if fully completed.
 		mtx_enter(&sc->sc_mtx);
-		sc->sc_ncmd--;
-		if (completed && recycled) sc->sc_nreplyfree++;
+		if (completed) {
+			sc->sc_ncmd--;
+			if (recycled) sc->sc_nreplyfree++;
+		}
 		wakeup(&sc->sc_ncmd);
 		mtx_leave(&sc->sc_mtx);
 	}
@@ -1087,7 +1087,11 @@ vkey_intr(void *arg)
 		if (!cmd && reply) {
  			log("... destroying reply");
 
- 			vkey_reply_recycle(sc, reply, false);
+			mtx_enter(&sc->sc_mtx);
+ 			bool recycled = vkey_reply_recycle(sc, reply, false);
+ 			sc->sc_ncmd--;
+ 			if (recycled) sc->sc_nreplyfree++;
+			mtx_leave(&sc->sc_mtx);
 		}
 
 		failed = false;
