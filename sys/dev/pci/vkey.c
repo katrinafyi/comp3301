@@ -1026,6 +1026,7 @@ vkey_intr(void *arg)
 	unsigned nprocessed = 0;
 	bool mutexed = false;
 	bool failed = true;
+	long h = -1;
 
 	struct vkey_softc *sc = arg;
 	log("vkey_intr enter, h=%zu", sc->sc_dma.comp.head);
@@ -1035,7 +1036,7 @@ vkey_intr(void *arg)
 	failed = false;
 	for (nprocessed = 0; !failed; nprocessed++) {
 		failed = true;
-		size_t h = sc->sc_dma.comp.head;
+		h = sc->sc_dma.comp.head;
 
 		vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_POSTREAD);
 
@@ -1091,18 +1092,20 @@ vkey_intr(void *arg)
 
 		failed = false;
 fail:
-		vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_POSTREAD);
-		vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_PREWRITE);
-		comp->owner = DEVICE;
-		// vkey_dmamap_sync(sc, COMP, -1, BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
+		if (h >= 0) {
+			vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_POSTREAD);
+			vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_PREWRITE);
+			comp->owner = DEVICE;
+			// vkey_dmamap_sync(sc, COMP, -1, BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 
-		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
-		log("... CPDBELL: %zu", h);
-		sc->sc_bar->cpdbell = h;
-		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+			vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
+			log("... CPDBELL: %zu", h);
+			sc->sc_bar->cpdbell = h;
+			vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 
-		vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_POSTWRITE);
-		vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_PREREAD);
+			vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_POSTWRITE);
+			vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_PREREAD);
+		}
 	}
 
 	log("vkey_intr leave, h=%zu (processed %u) (failing=%d)", sc->sc_dma.comp.head, nprocessed, failed);
