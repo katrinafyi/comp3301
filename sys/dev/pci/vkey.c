@@ -210,8 +210,9 @@ struct vkey_softc {
 	struct cookies sc_cookies;
 
 	unsigned long sc_cookiegen;
-	unsigned int sc_ncmd;  // number of commands in-flight
-	unsigned int sc_nreplyfree; // number of reply descriptors allocated
+	unsigned int sc_ncmd;  // number of non-orphaned commands in-flight
+	unsigned int sc_nreplycmd; // number of reply descriptors dedicated to commands
+	unsigned int sc_nreplyfree; // reply descriptors free for immediate use
 
 	// nreply used = ncmd 
 	// nreply alloced = ncmd + nreply free
@@ -389,7 +390,7 @@ vkey_ring_usable(struct vkey_softc *sc, enum vkey_ring ring)
 	ensure(ring != COMP, "COMP ring disallowed");
 	struct vkey_dma *dma = vkey_dma(sc, ring);
 
-	size_t n = ring == CMD ? sc->sc_ncmd : sc->sc_nreplyfree + sc->sc_ncmd;
+	size_t n = ring == CMD ? sc->sc_ncmd : sc->sc_nreplyfree + sc->sc_nreplycmd;
 	ensure(n < dma->count, "empty desc in ring %d not found, THIS SHOULD BE GUARDED BY ncmd/nreply. too many requests in flight?", ring);
 
 	size_t h = dma->head;
@@ -555,7 +556,7 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook, size_
 	ensure(ring == CMD || ring == REPLY, "invalid ring in alloc, cannot make cookie for completions");
 	struct vkey_dma *dma = vkey_dma(sc, ring);
 
-	int n = ring == CMD ? sc->sc_ncmd : sc->sc_ncmd + sc->sc_nreplyfree;
+	int n = ring == CMD ? sc->sc_ncmd : sc->sc_nreplycmd + sc->sc_nreplyfree;
 	ensure(n < dma->count, "over-allocating in ring %d", ring);
 
 	cookie = malloc(sizeof(struct vkey_cookie), M_DEVBUF, M_ZERO | M_NOWAIT);
@@ -647,8 +648,8 @@ vkey_debug(struct vkey_softc *sc)
 {
 	// REQUIRES MUTEX
 	struct vkey_cookie *c;
-	log("VKEY DEBUG. ncmd=%u, nreplyfree=%u, nreplyalloc=%u",
-			sc->sc_ncmd, sc->sc_nreplyfree, sc->sc_ncmd + sc->sc_nreplyfree);
+	log("VKEY DEBUG. ncmd=%u, nreplycmd=%u, nreplyfree=%u, nreplyalloc=%u",
+			sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree, sc->sc_nreplycmd + sc->sc_nreplyfree);
 	log("heads: cmd=%zu, reply=%zu, comp=%zu", sc->sc_dma.cmd.head, sc->sc_dma.reply.head, sc->sc_dma.comp.head);
 	log("COOKIES:");
 
@@ -796,19 +797,20 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 
 	log("cookie: %llu, type: %u, cmdlen: %zu", cook, arg->vkey_cmd, cmduio.uio_resid);
 	while (true) {
-		log("ncmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree);
-		while (sc->sc_ncmd >= sc->sc_dma.cmd.count) {
+		log("ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree, sc->sc_nreplyfree);
+		while (sc->sc_nreplycmd >= sc->sc_dma.cmd.count) {
 			// XXX don't forget to wakeup when decrementing ncmd
-			ensure(0 == msleep_nsec(&sc->sc_ncmd, &sc->sc_mtx, PCATCH | PRIBIO, "vkey sc_ncmd", INFSLP),
+			ensure(0 == msleep_nsec(&sc->sc_nreplycmd, &sc->sc_mtx, PCATCH | PRIBIO, "vkey sc_ncmd", INFSLP),
 					"awoken");
 		}
-		ensure(sc->sc_ncmd < sc->sc_dma.cmd.count, "BIG FAILURE. spin lock invariant failed");
+		ensure(sc->sc_nreplycmd < sc->sc_dma.cmd.count, "BIG FAILURE. spin lock invariant failed");
 
 		ensure(sc->sc_nreplyfree >= 0, "invariant failure!");
+		ensure(sc->sc_ncmd <= sc->sc_nreplycmd, "invariant failure!");
 		if (sc->sc_nreplyfree == 0) {
 			// at this point, due to cmd wait loop and invariant we can be sure there is
 			// space for a new reply buffer.
-			ensure(sc->sc_nreplyfree + sc->sc_ncmd < sc->sc_dma.reply.count, "BIG FAIL");
+			ensure(sc->sc_nreplyfree + sc->sc_nreplycmd < sc->sc_dma.reply.count, "BIG FAIL");
 
 			// INSUFFICIENT replies. assign new cookie using dmamap made while unlocked.
 			if (!replymap) {
@@ -842,8 +844,9 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	ensure(cmd, "cmd cookie alloc");
 	log("index: %zu", cmd->i);
 	sc->sc_ncmd++;
+	sc->sc_nreplycmd++;
 	sc->sc_nreplyfree--;
-	log("ncmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree);
+	log("ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree, sc->sc_nreplyfree);
 
 	ensure(sc->sc_nreplyfree >= 0, "invariant failure!");
 	incremented = true;
@@ -891,8 +894,10 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 
 	do {
 		error = msleep_nsec(&cmd->done, &sc->sc_mtx, PCATCH | PRIBIO, "vkey done wait", INFSLP);
-		if (error)
+		if (error) {
+			ret = EINTR;
 			ensure(!error, "sleep disturbed with code %d", error);
+		}
 	} while (cmd->done == false);
 	completed = true;
 
@@ -910,6 +915,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	if (cmd->replylen > reply->size) {
 		*bounce = cmd->replylen;
 		ensure(cmd->replylen <= reply->size, "reply size %zu exceeds driver buffer size %zu", cmd->replylen, reply->size);
+		ret = ENODEV;
 	}
 
 	caddr_t replyptr;
@@ -959,10 +965,14 @@ fail:
 	if (incremented) {
 		// return to pool if fully completed.
 		mtx_enter(&sc->sc_mtx);
+		sc->sc_ncmd--;
 		if (completed) {
-			sc->sc_ncmd--;
-			if (recycled) sc->sc_nreplyfree++;
+			sc->sc_nreplycmd--;
+			if (recycled) {
+				sc->sc_nreplyfree++;
+			}
 		}
+ 		wakeup(&sc->sc_nreplyfree);
 		wakeup(&sc->sc_ncmd);
 		mtx_leave(&sc->sc_mtx);
 	}
@@ -981,7 +991,7 @@ fail:
 	if (replymap) bus_dmamap_destroy(sc->sc_dmat, replymap);
 	if (loaded) bus_dmamap_unload(sc->sc_dmat, uiomap);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, uiomap);
-	log("ncmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree);
+	log("ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplyfree, sc->sc_nreplyfree);
 	log("return with error=%d", ret);
 	return ret;
 }
@@ -1089,9 +1099,13 @@ vkey_intr(void *arg)
 
 			mtx_enter(&sc->sc_mtx);
  			bool recycled = vkey_reply_recycle(sc, reply, false);
- 			sc->sc_ncmd--;
+ 			// sc->sc_ncmd--;
+ 			if (recycled) {
+ 				sc->sc_nreplycmd--;
+ 				sc->sc_nreplyfree++;
+ 			}
  			wakeup(&sc->sc_ncmd);
- 			if (recycled) sc->sc_nreplyfree++;
+ 			wakeup(&sc->sc_nreplyfree);
 			mtx_leave(&sc->sc_mtx);
 		}
 
