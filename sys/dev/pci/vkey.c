@@ -1133,6 +1133,7 @@ vkey_intr(void *arg)
 			} else {
  				log("... completion cmd not found. command abandoned?");
 			}
+			task_add(sc->sc_recycletq, &reply->task);
 		}
 		mtx_leave(&sc->sc_mtx);
 		mutexed = false;
@@ -1140,8 +1141,8 @@ vkey_intr(void *arg)
 		if (!cmd && reply) {
  			log("... destroying reply");
 			reply->recyclable = true;
+			wakeup(&reply->recyclable);
 		}
-		task_add(sc->sc_recycletq, &reply->task);
 
 		failed = false;
 fail:
