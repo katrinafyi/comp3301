@@ -16,7 +16,8 @@
 
 #define NITEMS(x) (sizeof(x) / sizeof(*(x)))
 
-#define log(msg, ...) printf("%s:%d\t" msg "\n", __func__, __LINE__, ##__VA_ARGS__)
+#define log(msg, ...) \
+    printf("%s:%d\t" msg "\n", __func__, __LINE__, ##__VA_ARGS__)
 
 #define _STR(x) #x
 #define STR(x) _STR(x)
@@ -107,7 +108,7 @@ struct vkey_cmd {
 };
 
 
-CTASSERT(sizeof(struct vkey_cmd) == 8 * sizeof(uint64_t)); 
+CTASSERT(sizeof(struct vkey_cmd) == 8 * sizeof(uint64_t));
 
 struct vkey_comp {
 	uint8_t owner;
@@ -130,14 +131,13 @@ enum vkey_ring {
 	COMP = 2,
 };
 
+
 struct vkey_dma {
-	unsigned shift;
-	unsigned count;
-	size_t esize;
+	unsigned shift;  // power of 2 shift for number of entries.
+	unsigned count;  // total number of entries in ring.
+	size_t esize;  // descriptor element size.
 
-	size_t head; // index of next insertion
-
-	// bool *freelist; // in attach
+	size_t head; // index of next insertion (cmd/reply) or read (comp)
 
 	bus_dmamap_t map; // in attach
 	bus_dma_segment_t seg[1]; // in attach
@@ -156,25 +156,25 @@ struct vkey_recycle_arg {
 
 struct vkey_cookie {
 	// these two fields are map keys:
-	enum vkey_ring type; // 
-	uint64_t cookie; // random cookie value
+	enum vkey_ring type;  // ring which this cookie belongs to.
+	uint64_t cookie;  // cookie value
 
 	size_t i; // index within respective ring
-	uint64_t time;   // creation time of this cookie
+	uint64_t time; // creation time of this cookie
 
 	// SET BY COMPLETION
-	bool done; // command only: done wakeup flag.
+	bool done; // command only: done wakeup flag. WAITABLE.
 	uint64_t reply; // command only: cookie of corresponding reply.
-	size_t replylen; // command only: total size of reply (possibly exceeding buffer size)
+	size_t replylen; // command only: reply size (may be larger than buffer)
 	uint8_t replytype; // command only: type of reply message
 
-	bool recyclable; // reply only: waitable. whether reply is read and ready to recycle.
-	struct task task;
-	struct vkey_recycle_arg taskarg;
+	bool recyclable; // reply only: waitable. reply has been read?
+	struct task task; // reply only: task to recycle this cookie.
+	struct vkey_recycle_arg taskarg; // reply only: recycle task argument.
 	bus_dmamap_t map; // reply only: buffer for reply.
 	bus_dma_segment_t segs[4]; // reply only: segment
-	size_t nsegs;
-	size_t size; // reply only: size of reply buffer
+	size_t nsegs; // reply only: number of dma segments
+	size_t size; // reply only: size of allocated reply buffer
 
 	RB_ENTRY(vkey_cookie) link;
 };
@@ -185,10 +185,10 @@ vkey_cookie_cmp(struct vkey_cookie *left, struct vkey_cookie *right)
 	if (left->type != right->type)
 		return left->type - right->type;
 	return ((int64_t)left->cookie) - ((int64_t)right->cookie);
-};
+}
 
 uint64_t
-vkey_time()
+vkey_time(void)
 {
 	struct timeval tv;
 	getmicrouptime(&tv);
@@ -200,43 +200,41 @@ RB_HEAD(cookies, vkey_cookie);
 RB_PROTOTYPE(cookies, vkey_cookie, link, vkey_cookie_cmp);
 RB_GENERATE(cookies, vkey_cookie, link, vkey_cookie_cmp);
 
+// mask to apply when using DBELL for reply indices.
+const uint32_t reply_mask = 1 << 31;
 
-// const uint64_t reply_cookie = 10000000000000000000U; // 10^19
-const uint32_t reply_mask = 1 << 31; 
-
-#define VKEY_CMDSHIFT (2)
+#define VKEY_CMDSHIFT (6)
 #define VKEY_CMDCOUNT (1 << VKEY_CMDSHIFT)
 
 struct vkey_softc {
 	struct device	 sc_dev;
-	bool 		 sc_attached;
+	bool		 sc_attached;
 	struct {
 		bus_space_tag_t tag;
 		bus_space_handle_t handle;
 	} sc_bus[2];
 
 	volatile struct vkey_bar *sc_bar;
-	// struct vkey_flags *sc_flags;
 
 	struct mutex sc_mtx;
 
 	struct cookies sc_cookies;
 
-	unsigned long sc_cmdgen;
-	unsigned long sc_replygen;
+	unsigned long sc_cmdgen; // incrementer used for command cookies.
+	unsigned long sc_replygen; // incrementer for reply cookies.
 	unsigned int sc_ncmd;  // number of non-orphaned commands in-flight
-	unsigned int sc_nreplycmd; // number of reply descriptors dedicated to commands
+	unsigned int sc_nreplycmd; // number of replies reserved for commands
 	unsigned int sc_nreplyfree; // reply descriptors free for immediate use
-	bool sc_cmdused[VKEY_CMDCOUNT]; // array of cmd owners. false = us, true = device.
+	bool sc_cmdused[VKEY_CMDCOUNT]; // cmd owners. false = us, true = device
 
-	struct taskq *sc_recycletq; // task for the recycling of reply descriptors. MUST HAPPEN IN ORDER. 
-	
+	struct taskq *sc_recycletq; // task for recycling of reply descriptors.
+
 	bus_dma_tag_t sc_dmat;
 	struct {
 		struct vkey_dma cmd;
 		struct vkey_dma reply;
 		struct vkey_dma comp;
-	} sc_dma;
+	} sc_dma; // the many rings which we hold.
 
 	pci_intr_handle_t sc_ih;
 	void *sc_ihc;
@@ -268,13 +266,15 @@ vkey_match(struct device *parent, void *match, void *aux)
 
 
 void
-vkey_bar_barrier(struct vkey_softc *sc, int barriers) {
+vkey_bar_barrier(struct vkey_softc *sc, int barriers)
+{
 	bus_space_barrier(sc->sc_bus[0].tag, sc->sc_bus[0].handle, 0,
 	    sizeof(struct vkey_bar), barriers);
 }
 
 bool
-vkey_check(struct vkey_softc *sc) {
+vkey_check(struct vkey_softc *sc)
+{
 	volatile struct vkey_flags *errs = &sc->sc_bar->flags;
 
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE | BUS_SPACE_BARRIER_READ);
@@ -308,7 +308,8 @@ vkey_dma(struct vkey_softc *sc, enum vkey_ring ring)
 }
 
 void
-vkey_dmamap_sync(struct vkey_softc *sc, enum vkey_ring ring, long index, int syncs)
+vkey_dmamap_sync(struct vkey_softc *sc, enum vkey_ring ring,
+    long index, int syncs)
 {
 	size_t size;
 	struct vkey_dma *dma = vkey_dma(sc, ring);
@@ -316,19 +317,18 @@ vkey_dmamap_sync(struct vkey_softc *sc, enum vkey_ring ring, long index, int syn
 		index = 0;
 		size = dma->map->dm_mapsize;
 	} else {
-		size = ring != COMP ? sizeof(struct vkey_cmd) : sizeof(struct vkey_comp);
+		size = ring != COMP ? sizeof(struct vkey_cmd)
+		    : sizeof(struct vkey_comp);
 		index *= size;
 	}
 
 	bus_dmamap_sync(sc->sc_dmat, dma->map, index, size, syncs);
 }
 
-
-// const unsigned shift = 2;
-// const unsigned count = 1 << shift; // number of descriptors
-
 bool
-vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, size_t descsize) {
+vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma,
+    size_t descsize)
+{
 	int error;
 	bool created = false, alloced = false, mapped = false, loaded = false;
 
@@ -342,24 +342,29 @@ vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, si
 
 	ensure(!dma->map, "dmamap double create");
 	error = bus_dmamap_create(sc->sc_dmat, size,
-			1, size, 0, 
-			BUS_DMA_WAITOK | BUS_DMA_ALLOCNOW | BUS_DMA_64BIT,
-			&dma->map);
+	    1, size, 0,
+	    BUS_DMA_WAITOK | BUS_DMA_ALLOCNOW | BUS_DMA_64BIT,
+	    &dma->map);
 	bus_dmamap_t map = dma->map;
 	ensure2(created, map && !error, "dmamap %s", name);
 
 	int nsegs;
 	ensure(dma->as.addr == NULL, "double assignment");
-	error = bus_dmamem_alloc(sc->sc_dmat, size, 0, 0, dma->seg, 1, &nsegs, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	error = bus_dmamem_alloc(sc->sc_dmat, size, 0, 0, dma->seg, 1, &nsegs,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	ensure(!error, "dmamem alloc");
 	ensure2(alloced, nsegs == 1, "dmamem alloc");
 
-	// XXX IMPORTANT: the dm_seg fields cannot be used here. this requires a separate segment field.
-	error = bus_dmamem_map(sc->sc_dmat, dma->seg, 1, size, &dma->as.addr, BUS_DMA_WAITOK);
+	// XXX IMPORTANT: the dm_seg fields cannot be used here.
+	// this requires a separate segment field.
+	error = bus_dmamem_map(sc->sc_dmat, dma->seg, 1, size, &dma->as.addr,
+	    BUS_DMA_WAITOK);
 	ensure2(mapped, !error && dma->as.addr, "dmamem map");
 
-	// XXX THEN, load will assign a paddr for the DMA and store /this/ inside the dm_seg.
-	error = bus_dmamap_load(sc->sc_dmat, map, dma->as.addr, size, NULL, BUS_DMA_WAITOK);
+	// XXX THEN, load will assign a paddr for the DMA and store /this/
+	// inside the dm_seg.
+	error = bus_dmamap_load(sc->sc_dmat, map, dma->as.addr, size, NULL,
+	    BUS_DMA_WAITOK);
 	ensure2(loaded, !error, "dmamap load");
 	ensure(map->dm_mapsize == size, "mapsize");
 
@@ -370,24 +375,32 @@ vkey_ring_init(struct vkey_softc *sc, const char *name, struct vkey_dma *dma, si
 			dma->as.cmds[i].owner = HOST;
 		}
 	}
-	bus_dmamap_sync(sc->sc_dmat, dma->map, 0, size, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->sc_dmat, dma->map, 0, size,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	log("ring allocated for %s of size %zu (count=%u) at kaddr %p and paddr %p", name, size, dma->count, dma->as.addr, map->dm_segs);
+	log("ring allocated for %s of size %zu (count=%u)"
+	    " at kaddr %p and paddr %p",
+	    name, size, dma->count, dma->as.addr, map->dm_segs);
 
 	return true;
 fail:
 	if (loaded) bus_dmamap_unload(sc->sc_dmat, map);
-	if (mapped) bus_dmamem_unmap(sc->sc_dmat, dma->as.addr, map->dm_mapsize);
+	if (mapped)
+		bus_dmamem_unmap(sc->sc_dmat, dma->as.addr, map->dm_mapsize);
 	if (alloced) bus_dmamem_free(sc->sc_dmat, map->dm_segs, map->dm_nsegs);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, map);
 	return false;
 }
 
 bool
-vkey_rings(struct vkey_softc *sc) {
-	ensure(vkey_ring_init(sc, "cmd", &sc->sc_dma.cmd, sizeof(struct vkey_cmd)), "cmd");
-	ensure(vkey_ring_init(sc, "reply", &sc->sc_dma.reply, sizeof(struct vkey_cmd)), "reply");
-	ensure(vkey_ring_init(sc, "comp", &sc->sc_dma.comp, sizeof(struct vkey_comp)), "comp");
+vkey_rings(struct vkey_softc *sc)
+{
+	ensure(vkey_ring_init(sc, "cmd", &sc->sc_dma.cmd,
+	    sizeof(struct vkey_cmd)), "cmd");
+	ensure(vkey_ring_init(sc, "reply", &sc->sc_dma.reply,
+	    sizeof(struct vkey_cmd)), "reply");
+	ensure(vkey_ring_init(sc, "comp", &sc->sc_dma.comp,
+	    sizeof(struct vkey_comp)), "comp");
 
 	for (unsigned i = 0; i < sc->sc_dma.comp.count; i++) {
 		sc->sc_dma.comp.as.comps[i].owner = DEVICE;
@@ -398,18 +411,30 @@ fail:
 	return false;
 }
 
+/*
+ * locates the next usable index in the given ring.
+ * updates the sc state with the assumption that the returned value is used.
+ *
+ * returns index >= 0 on success or negative on failure.
+ *
+ * REQUIRES SC MUTEX.
+ */
 long
 vkey_ring_usable(struct vkey_softc *sc, enum vkey_ring ring)
 {
 	ensure(ring != COMP, "COMP ring disallowed");
 	struct vkey_dma *dma = vkey_dma(sc, ring);
 
-	size_t n = ring == CMD ? sc->sc_ncmd : sc->sc_nreplyfree + sc->sc_nreplycmd;
-	ensure(n < dma->count, "empty desc in ring %d not found, THIS SHOULD BE GUARDED BY ncmd/nreply. too many requests in flight?", ring);
+	size_t n = ring == CMD ? sc->sc_ncmd :
+	    sc->sc_nreplyfree + sc->sc_nreplycmd;
+	ensure(n < dma->count, "empty desc in ring %d not found, "
+	    "THIS SHOULD BE GUARDED BY ncmd/nreply. "
+	    "too many requests in flight?", ring);
 
 	size_t h = dma->head;
 	if (ring == CMD) {
-		ensure(sc->sc_cmdused[h] == false, "attempt to use device-owned cmd desc");
+		ensure(sc->sc_cmdused[h] == false,
+		    "attempt to use device-owned cmd desc");
 		sc->sc_cmdused[h] = true;
 	}
 	dma->head++;
@@ -431,7 +456,7 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 
 	struct pci_attach_args *pa = aux;
 	printf(": attaching vkey device: bus=%d, device=%d, function=%d\n",
-			pa->pa_bus, pa->pa_device, pa->pa_function);
+	    pa->pa_bus, pa->pa_device, pa->pa_function);
 	log("recycletq=%p", sc->sc_recycletq);
 
 	mtx_init(&sc->sc_mtx, IPL_BIO);
@@ -447,14 +472,10 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	(void)reg1;
 
 	error = pci_mapreg_map(pa, 0x10, reg0, BUS_SPACE_MAP_LINEAR,
-			&sc->sc_bus[0].tag, &sc->sc_bus[0].handle, NULL, &size0, 0);
+	    &sc->sc_bus[0].tag, &sc->sc_bus[0].handle, NULL,
+	    &size0, 0);
 	printf(": map0 returned %d, size=%lu\n", error, size0);
 	ensure(!error, "mapreg");
-
-	// error = pci_mapreg_map(pa, 0x18, reg1, BUS_SPACE_MAP_LINEAR,
-	// 		&sc->sc_bus[1].tag, &sc->sc_bus[1].handle, NULL, &size1, 0);
-	// printf(": map1 returned %d, size=%lu\n", error, size1);
-	// ensure(!error, "mapreg flags");
 
 	CTASSERT(sizeof(struct vkey_bar) <= 0x80);
 	ensure(size0 == 0x80, "size");
@@ -462,18 +483,18 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	sc->sc_bar = bus_space_vaddr(sc->sc_bus[0].tag, sc->sc_bus[0].handle);
 	ensure(sc->sc_bar != NULL, "vaddr sc_bar");
 
-	// sc->sc_flags = bus_space_vaddr(sc->sc_bus[1].tag, sc->sc_bus[1].handle);
-	// ensure(sc->sc_flags != NULL, "vaddr sc_flags");
-
 	printf(": device maj=%u, min=%u\n", sc->sc_bar->vmaj, sc->sc_bar->vmin);
 	ensure(sc->sc_bar->vmaj == 1 && sc->sc_bar->vmin >= 0, "version");
 
 	sc->sc_dmat = pa->pa_dmat;
 	ensure(vkey_rings(sc), "rings");
 
-	vkey_dmamap_sync(sc, CMD, -1, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	vkey_dmamap_sync(sc, REPLY, -1, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	vkey_dmamap_sync(sc, COMP, -1, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	vkey_dmamap_sync(sc, CMD, -1,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	vkey_dmamap_sync(sc, REPLY, -1,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	vkey_dmamap_sync(sc, COMP, -1,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	sc->sc_bar->cbase = (uint64_t)sc->sc_dma.cmd.map->dm_segs[0].ds_addr;
 	sc->sc_bar->cshift = sc->sc_dma.cmd.shift;
@@ -483,15 +504,19 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	sc->sc_bar->cpshift = sc->sc_dma.comp.shift;
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 
-	vkey_dmamap_sync(sc, CMD, -1, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-	vkey_dmamap_sync(sc, REPLY, -1, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-	vkey_dmamap_sync(sc, COMP, -1, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	vkey_dmamap_sync(sc, CMD, -1,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	vkey_dmamap_sync(sc, REPLY, -1,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	vkey_dmamap_sync(sc, COMP, -1,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 
 	error = pci_intr_map_msix(pa, 0, &sc->sc_ih);
 	ensure(!error, "pci_intr_map");
 
-	sc->sc_ihc = pci_intr_establish(pa->pa_pc, sc->sc_ih, IPL_BIO, vkey_intr, sc, sc->sc_dev.dv_xname);
+	sc->sc_ihc = pci_intr_establish(
+	    pa->pa_pc, sc->sc_ih, IPL_BIO, vkey_intr, sc, sc->sc_dev.dv_xname);
 	ensure(sc->sc_ihc, "intr_establish");
 
 	ensure(vkey_check(sc), "initial check");
@@ -505,7 +530,8 @@ fail:
 }
 
 struct vkey_softc *
-vkey_lookup(dev_t dev) {
+vkey_lookup(dev_t dev)
+{
 	// printf("vkey %d lookup, %d, %d\n", dev, major(dev), minor(dev));
 	ensure(major(dev) == 101, "major");
 
@@ -521,7 +547,8 @@ int
 vkeyopen(dev_t dev, int mode, int flags, struct proc *p)
 {
 	struct vkey_softc *sc = vkey_lookup(dev);
-	if (!sc) return ENXIO;
+	if (!sc)
+		return ENXIO;
 
 	ensure(vkey_check(sc), "check");
 
@@ -540,8 +567,8 @@ vkeyclose(dev_t dev, int flag, int mode, struct proc *p)
 	mtx_enter(&sc->sc_mtx);
 	while (sc->sc_ncmd > 0) {
 		// XXX don't forget to wakeup when decrementing ncmd
-		ensure(0 == msleep_nsec(&sc->sc_ncmd, &sc->sc_mtx, PCATCH | PRIBIO, "vkeyclose sc_ncmd", INFSLP),
-				"awoken");
+		ensure(0 == msleep_nsec(&sc->sc_ncmd, &sc->sc_mtx,
+		    PCATCH | PRIBIO, "vkeyclose sc_ncmd", INFSLP), "awoken");
 	}
 	mtx_leave(&sc->sc_mtx);
 
@@ -568,20 +595,32 @@ vkeyread(dev_t dev, struct uio *uio, int flags)
 
 const size_t defaultreplysize = 16 * 1024 * sizeof(char);
 
+/*
+ * allocates a new entry within the given ring and using the given args.
+ * for REPLY, uses the given dmamap and allocates space, then
+ * informs the device.
+ *
+ * REQUIRES SC MUTEX.
+ */
 struct vkey_cookie *
-vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook, size_t replysize, bus_dmamap_t map)
+vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring,
+    uint64_t cook, size_t replysize, bus_dmamap_t map)
 {
 	int error = 0;
-	bool created = false, alloced = false, loaded = false, incremented = false;
+	bool created = false, alloced = false, loaded = false,
+	    incremented = false;
 	struct vkey_cookie *cookie = NULL;
 
-	ensure(ring == CMD || ring == REPLY, "invalid ring in alloc, cannot make cookie for completions");
+	ensure(ring == CMD || ring == REPLY,
+	    "invalid ring in alloc, cannot make cookie for completions");
 	struct vkey_dma *dma = vkey_dma(sc, ring);
 
-	int n = ring == CMD ? sc->sc_ncmd : sc->sc_nreplycmd + sc->sc_nreplyfree;
+	int n = ring == CMD ? sc->sc_ncmd :
+	    sc->sc_nreplycmd + sc->sc_nreplyfree;
 	ensure(n < dma->count, "over-allocating in ring %d", ring);
 
-	cookie = malloc(sizeof(struct vkey_cookie), M_DEVBUF, M_ZERO | M_NOWAIT);
+	cookie = malloc(sizeof(struct vkey_cookie),
+	    M_DEVBUF, M_ZERO | M_NOWAIT);
 	ensure(cookie, "malloc");
 
 	// committed to allocation
@@ -602,22 +641,22 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook, size_
 		cookie->taskarg.reply = cookie;
 		task_set(&cookie->task, vkey_reply_recycle, &cookie->taskarg);
 
-		// error = bus_dmamap_create(sc->sc_dmat, replysize, 4, replysize, 0, BUS_DMA_ALLOCNOW | BUS_DMA_NOWAIT, &cookie->map);
-		// ensure2(created, !error, "create");
 		cookie->map = map;
 
 		int nitems = 0;
 		error = bus_dmamem_alloc(sc->sc_dmat, replysize, 0, 0,
-				cookie->segs, NITEMS(cookie->segs), &nitems,
-				BUS_DMA_NOWAIT);
+		    cookie->segs, NITEMS(cookie->segs), &nitems,
+		    BUS_DMA_NOWAIT);
 		ensure2(alloced, !error, "alloc");
 		cookie->nsegs = nitems;
 		cookie->size = replysize;
 
-		error = bus_dmamap_load_raw(sc->sc_dmat, cookie->map, cookie->segs, cookie->nsegs, replysize, BUS_DMA_NOWAIT);
+		error = bus_dmamap_load_raw(sc->sc_dmat, cookie->map,
+		    cookie->segs, cookie->nsegs, replysize, BUS_DMA_NOWAIT);
 		ensure2(loaded, !error, "load_raw");
 
-		volatile struct vkey_cmd *reply = sc->sc_dma.reply.as.replies + index;
+		volatile struct vkey_cmd *reply =
+		    sc->sc_dma.reply.as.replies + index;
 
 		ensure(reply->owner == HOST, "owner incorrect");
 
@@ -655,7 +694,7 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring, uint64_t cook, size_
 
 	RB_INSERT(cookies, &sc->sc_cookies, cookie);
 	return cookie;
-fail: 
+fail:
 	if (incremented) {
 		sc->sc_dma.reply.head--;
 		sc->sc_dma.reply.head %= sc->sc_dma.reply.count;
@@ -667,27 +706,42 @@ fail:
 	return NULL;
 }
 
+/*
+ * REQUIRES MUTEX.
+ */
 void
 vkey_debug(struct vkey_softc *sc)
 {
 	// REQUIRES MUTEX
 	struct vkey_cookie *c;
 	log("VKEY DEBUG. ncmd=%u, nreplycmd=%u, nreplyfree=%u, nreplyalloc=%u",
-			sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree, sc->sc_nreplycmd + sc->sc_nreplyfree);
-	log("heads: cmd=%zu, reply=%zu, comp=%zu", sc->sc_dma.cmd.head, sc->sc_dma.reply.head, sc->sc_dma.comp.head);
+	    sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree,
+	    sc->sc_nreplycmd + sc->sc_nreplyfree);
+	log("heads: cmd=%zu, reply=%zu, comp=%zu",
+	    sc->sc_dma.cmd.head, sc->sc_dma.reply.head, sc->sc_dma.comp.head);
 	log("COOKIES:");
 
 	unsigned ncmd = 0, nreply = 0;
 	RB_FOREACH(c, cookies, &sc->sc_cookies) {
-		log("  type=%d, cookie=%llu, index=%zu, [cmd: reply=%llu, replytype=%d, replylen=%zu], [reply: size=%zu]",
-				c->type, c->cookie, c->i, c->reply, c->replytype, c->replylen, c->size);
+		log("  type=%d, cookie=%llu, index=%zu, [cmd: reply=%llu, "
+		    "replytype=%d, replylen=%zu], [reply: size=%zu]",
+		    c->type, c->cookie, c->i, c->reply, c->replytype,
+		    c->replylen, c->size);
 		if (c->type == CMD) ncmd++;
 		if (c->type == REPLY) nreply++;
 	}
 	log("tree ncmd=%u, nreply=%u", ncmd, nreply);
 }
 
-
+/*
+ * task to recycle replies.
+ * this is run in a separate taskq as we MUST recycle replies in the same
+ * order they are completed in, to avoid any 'holes' in the circular
+ * reply queue.
+ *
+ * TAKES MUTEX.
+ * CALLED BY TASKQ.
+ */
 void
 vkey_reply_recycle(void *arg)
 {
@@ -696,19 +750,18 @@ vkey_reply_recycle(void *arg)
 	struct vkey_cookie *reply = ra->reply;
 
 	const bool mustdestroy = false;
-	
+
 	mtx_enter(&sc->sc_mtx);
 
 	log("recycling reply %llu at index %zu", reply->cookie, reply->i);
 	while (!reply->recyclable) {
 		log("... sleeping");
-		msleep_nsec(&reply->recyclable, &sc->sc_mtx, PRIBIO, "vkey_reply_recycle", INFSLP);
+		msleep_nsec(&reply->recyclable, &sc->sc_mtx, PRIBIO,
+		    "vkey_reply_recycle", INFSLP);
 	}
 
 	// XXX ASSUMES: reply owner is held by HOST and within ncmd
 	ensure(reply, "reply_recycle");
-
-
 
 	// XXX if this is a special reply buffer, reclaim it.
 	if (reply && (reply->size != defaultreplysize || mustdestroy)) {
@@ -727,7 +780,7 @@ vkey_reply_recycle(void *arg)
 	}
 
 	// if we read a reply, we will recycle the reply buffer back to the
-	// head of the ring for re-use. this is not needed if we didn't read a reply
+	// head of the ring for re-use. this is not needed if command failed.
 	// since the buffer will remain in its position ready to use.
 	if (reply) {
 		RB_REMOVE(cookies, &sc->sc_cookies, reply);
@@ -736,8 +789,10 @@ vkey_reply_recycle(void *arg)
 		sc->sc_nreplycmd--;
 
 		// invalidate old reply descriptor
-		volatile struct vkey_cmd *rep = sc->sc_dma.reply.as.replies + reply->i;
-		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_POSTWRITE | BUS_DMASYNC_POSTREAD);
+		volatile struct vkey_cmd *rep =
+		    sc->sc_dma.reply.as.replies + reply->i;
+		vkey_dmamap_sync(sc, REPLY, reply->i,
+		    BUS_DMASYNC_POSTWRITE | BUS_DMASYNC_POSTREAD);
 		rep->cookie = 4444444444444444;
 
 		// move cookie into new ring position.
@@ -750,8 +805,10 @@ vkey_reply_recycle(void *arg)
 		reply->recyclable = false;
 		log("... new cookie %llu", reply->cookie);
 
-		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_POSTWRITE | BUS_DMASYNC_POSTREAD);
-		volatile struct vkey_cmd *rep2 = sc->sc_dma.reply.as.replies + reply->i;
+		vkey_dmamap_sync(sc, REPLY, reply->i,
+		    BUS_DMASYNC_POSTWRITE | BUS_DMASYNC_POSTREAD);
+		volatile struct vkey_cmd *rep2 =
+		    sc->sc_dma.reply.as.replies + reply->i;
 		rep2->cookie = reply->cookie;
 		rep2->len1 = rep->len1;
 		rep2->len2 = rep->len2;
@@ -762,19 +819,22 @@ vkey_reply_recycle(void *arg)
 		rep2->ptr3 = rep->ptr3;
 		rep2->ptr4 = rep->ptr4;
 
-		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
+		vkey_dmamap_sync(sc, REPLY, reply->i,
+		    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 		rep2->owner = DEVICE;
-		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
+		vkey_dmamap_sync(sc, REPLY, reply->i,
+		    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 
 		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 		log("DBELL: reply %zu", reply->i);
 		sc->sc_bar->dbell = reply_mask | reply->i;
 		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 
-		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_POSTWRITE | BUS_DMASYNC_POSTREAD);
+		vkey_dmamap_sync(sc, REPLY, reply->i,
+		    BUS_DMASYNC_POSTWRITE | BUS_DMASYNC_POSTREAD);
 
 		// give descriptor back to this command. to be yielded later.
-		sc->sc_nreplycmd++; 
+		sc->sc_nreplycmd++;
 
 		RB_INSERT(cookies, &sc->sc_cookies, reply);
 	}
@@ -783,9 +843,10 @@ vkey_reply_recycle(void *arg)
 	if (reply) {
 		sc->sc_nreplyfree++;
 	}
- 	wakeup(&sc->sc_nreplycmd);
+	wakeup(&sc->sc_nreplycmd);
 
-	log("recycled: ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
+	log("recycled: ncmd=%u, nreplycmd=%u, nreplyfree=%u",
+	    sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
 	mtx_leave(&sc->sc_mtx);
 	return;
 fail:
@@ -794,11 +855,13 @@ fail:
 }
 
 int
-vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, size_t *bounce)
+vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p,
+    struct vkey_cmd_arg *arg, size_t *bounce)
 {
 	int ret = EIO;
 	int error = -1;
-	bool mutexed = false, created = false, loaded = false, incremented = false, replymapped = false, completed = false;
+	bool mutexed = false, created = false, loaded = false,
+	    incremented = false, replymapped = false, completed = false;
 	struct vkey_cookie *cmd = NULL, *reply = NULL;
 	bus_dmamap_t replymap = NULL;
 
@@ -829,10 +892,13 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	replyuio.uio_procp = p;
 
 	bus_dmamap_t uiomap = NULL;
-	error = bus_dmamap_create(sc->sc_dmat, cmduio.uio_resid, 4, cmduio.uio_resid, 0, BUS_DMA_ALLOCNOW | BUS_DMA_64BIT | BUS_DMA_WAITOK, &uiomap);
+	error = bus_dmamap_create(sc->sc_dmat, cmduio.uio_resid, 4,
+	    cmduio.uio_resid, 0,
+	    BUS_DMA_ALLOCNOW | BUS_DMA_64BIT | BUS_DMA_WAITOK, &uiomap);
 	ensure2(created, !error, "bus_dmamap_create");
 
-	error = bus_dmamap_load_uio(sc->sc_dmat, uiomap, &cmduio, BUS_DMA_WAITOK | BUS_DMA_WRITE);
+	error = bus_dmamap_load_uio(sc->sc_dmat, uiomap, &cmduio,
+	    BUS_DMA_WAITOK | BUS_DMA_WRITE);
 	ensure2(loaded, !error, "load_uio");
 
 	// *************** MUTEX ENTER  ***************
@@ -840,49 +906,63 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	mutexed = true;
 
 	uint64_t cmdcook = sc->sc_cmdgen++;
-	// ensure(cook < reply_cookie, "cookie counter overflow! maybe the system has been on for too long...");
 
-	log("cookie: %llu, type: %u, cmdlen: %zu", cmdcook, arg->vkey_cmd, cmduio.uio_resid);
+	log("cookie: %llu, type: %u, cmdlen: %zu",
+	    cmdcook, arg->vkey_cmd, cmduio.uio_resid);
 	while (true) {
-		log("waiting for cmd slot: ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
-		while (sc->sc_nreplycmd >= sc->sc_dma.cmd.count || sc->sc_cmdused[sc->sc_dma.cmd.head]) {
+		log("waiting for cmd : ncmd=%u, nreplycmd=%u, nreplyfree=%u",
+		    sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
+		while (sc->sc_nreplycmd >= sc->sc_dma.cmd.count ||
+		    sc->sc_cmdused[sc->sc_dma.cmd.head]) {
 			// XXX don't forget to wakeup when decrementing ncmd
-			ensure(0 == msleep_nsec(&sc->sc_nreplycmd, &sc->sc_mtx, PCATCH | PRIBIO, "vkey sc_ncmd", INFSLP),
-					"awoken");
+			ensure(0 == msleep_nsec(&sc->sc_nreplycmd, &sc->sc_mtx,
+			    PCATCH | PRIBIO, "vkey sc_ncmd", INFSLP),
+			    "awoken");
 		}
-		ensure(sc->sc_nreplycmd < sc->sc_dma.cmd.count, "BIG FAILURE. spin lock invariant failed");
-		ensure(sc->sc_cmdused[sc->sc_dma.cmd.head] == false, "BIG FAILURE.");
+		ensure(sc->sc_nreplycmd < sc->sc_dma.cmd.count,
+		    "BIG FAILURE. spin lock invariant failed");
+		ensure(sc->sc_cmdused[sc->sc_dma.cmd.head] == false,
+		    "BIG FAILURE.");
 
 		ensure(sc->sc_nreplyfree >= 0, "invariant failure!");
 		ensure(sc->sc_ncmd <= sc->sc_nreplycmd, "invariant failure!");
 		if (sc->sc_nreplyfree == 0) {
-			// at this point, due to cmd wait loop and invariant we can be sure there is
-			// space for a new reply buffer.
-			ensure(sc->sc_nreplyfree + sc->sc_nreplycmd < sc->sc_dma.reply.count, "BIG FAIL");
+			// at this point, due to cmd wait loop and invariant
+			// we can be sure there is space for a new reply buffer.
+			ensure(sc->sc_nreplyfree + sc->sc_nreplycmd <
+			    sc->sc_dma.reply.count, "BIG FAIL");
 
-			// INSUFFICIENT replies. assign new cookie using dmamap made while unlocked.
+			// INSUFFICIENT replies. assign new cookie using dmamap
+			// made while unlocked.
 			if (!replymap) {
 				mtx_leave(&sc->sc_mtx);
 				mutexed = false;
 
-				log("allocating new reply buffer of size %zu", bouncesize);
-				error = bus_dmamap_create(sc->sc_dmat, bouncesize, 4, bouncesize, 0,
-						BUS_DMA_WAITOK | BUS_DMA_ALLOCNOW, &replymap);
+				log("allocating new reply buffer of size %zu",
+				    bouncesize);
+				error = bus_dmamap_create(
+				    sc->sc_dmat, bouncesize, 4, bouncesize, 0,
+				    BUS_DMA_WAITOK | BUS_DMA_ALLOCNOW,
+				    &replymap);
 				ensure(!error, "create");
 
 				mtx_enter(&sc->sc_mtx);
 				mutexed = true;
-				// retry loop. we need to verify all the counter variables in one unbroken run.
+				// retry loop. we need to verify all the counter
+				// variables in one unbroken run.
 				continue;
 			} else {
-				struct vkey_cookie *reply = vkey_ring_alloc(sc, REPLY, sc->sc_replygen++, bouncesize, replymap);
+				struct vkey_cookie *reply =
+				    vkey_ring_alloc(sc, REPLY,
+				    sc->sc_replygen++, bouncesize, replymap);
 				ensure(reply, "reply alloc");
 
 				replymap = NULL; // MOVE replymap into cookie
 				sc->sc_nreplyfree++;
-				log("allocated new reply. now, nreplyfree=%u", sc->sc_nreplyfree);
+				log("allocated new reply. now, nreplyfree=%u",
+				    sc->sc_nreplyfree);
 			}
-		} 
+		}
 		// enough replies. maintain lock and break.
 		break;
 	}
@@ -894,7 +974,8 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	sc->sc_ncmd++;
 	sc->sc_nreplycmd++;
 	sc->sc_nreplyfree--;
-	log("found cmd slot: ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
+	log("found cmd slot: ncmd=%u, nreplycmd=%u, nreplyfree=%u",
+	    sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
 
 	ensure(sc->sc_nreplyfree >= 0, "invariant failure!");
 	incremented = true;
@@ -903,13 +984,15 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 
 	vkey_debug(sc);
 
-	// we can always write, the device should be smart enough to handle concurrent write/completion/reply?
+	// we can always write, the device should be smart enough to handle
+	// concurrent write/completion/reply?
 
 	volatile struct vkey_cmd *desc = sc->sc_dma.cmd.as.cmds + cmd->i;
 
 	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_POSTREAD);
 
-	ensure(desc->owner == HOST, "attempt to write on non host-owned descriptor");
+	ensure(desc->owner == HOST,
+	    "attempt to write on non host-owned descriptor");
 
 	desc->cookie = cmd->cookie;
 
@@ -927,7 +1010,8 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 	desc->owner = DEVICE;
 
-	bus_dmamap_sync(sc->sc_dmat, uiomap, 0, uiomap->dm_mapsize, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->sc_dmat, uiomap, 0, uiomap->dm_mapsize,
+	    BUS_DMASYNC_PREWRITE);
 	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_PREWRITE);
 	vkey_dmamap_sync(sc, REPLY, -1, BUS_DMASYNC_PREREAD);
 	vkey_dmamap_sync(sc, COMP, -1, BUS_DMASYNC_PREREAD);
@@ -940,11 +1024,16 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 
 	vkey_dmamap_sync(sc, REPLY, -1, BUS_DMASYNC_POSTREAD);
 	vkey_dmamap_sync(sc, CMD, cmd->i, BUS_DMASYNC_POSTWRITE);
-	bus_dmamap_sync(sc->sc_dmat, uiomap, 0, uiomap->dm_mapsize, BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(sc->sc_dmat, uiomap, 0, uiomap->dm_mapsize,
+	    BUS_DMASYNC_POSTWRITE);
 
 	do {
-		error = msleep_nsec(&cmd->done, &sc->sc_mtx, PCATCH | PRIBIO, "vkey done wait", INFSLP);
-		if (error) {
+		error = msleep_nsec(&cmd->done, &sc->sc_mtx, PCATCH | PRIBIO,
+		    "vkey done wait", 1000);
+		if (error == EWOULDBLOCK) {
+			ensure(vkey_check(sc), "device failure!");
+		}
+		if (error == ERESTART || error == EINTR) {
 			ret = EINTR;
 			ensure(!error, "sleep disturbed with code %d", error);
 		}
@@ -965,24 +1054,31 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 
 	if (cmd->replylen > reply->size) {
 		*bounce = cmd->replylen;
-		ensure(cmd->replylen <= reply->size, "reply size %zu exceeds driver buffer size %zu", cmd->replylen, reply->size);
+		ensure(cmd->replylen <= reply->size,
+		    "reply size %zu exceeds driver buffer size %zu",
+		    cmd->replylen, reply->size);
 		ret = ENODEV;
 	}
 
 	caddr_t replyptr;
-	error = bus_dmamem_map(sc->sc_dmat, reply->segs, reply->nsegs, reply->size, &replyptr, BUS_DMA_WAITOK);
+	error = bus_dmamem_map(sc->sc_dmat, reply->segs, reply->nsegs,
+	    reply->size, &replyptr, BUS_DMA_WAITOK);
 	ensure2(replymapped, !error, "reply dmamem_map");
 
-	bus_dmamap_sync(sc->sc_dmat, reply->map, 0, reply->size, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(sc->sc_dmat, reply->map, 0, reply->size,
+	    BUS_DMASYNC_POSTREAD);
 
 	size_t oldresid = replyuio.uio_resid;
 	if (!(arg->vkey_flags & VKEY_FLAG_TRUNC_OK)) {
 		ret = EFBIG;
-		ensure(oldresid >= cmd->replylen, "reply too big! reply is %zu but user buffer is only %zu", cmd->replylen, oldresid);
+		ensure(oldresid >= cmd->replylen,
+		    "reply too big! reply is %zu but user buffer is only %zu",
+		    cmd->replylen, oldresid);
 		ret = EIO;
 	}
 
-	log("moving %zu bytes into a buffer of size %zu", cmd->replylen, oldresid);
+	log("moving %zu bytes into a buffer of size %zu",
+	    cmd->replylen, oldresid);
 	error = uiomove(replyptr, cmd->replylen, &replyuio);
 	ensure(!error, "uiomove faulted");
 	size_t written = oldresid - replyuio.uio_resid;
@@ -995,8 +1091,9 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 
 	// XXX if has reply data, obtain from reply cookie.
 	// XXX free reply cookie
-	// XXX write to user. use uiomove with buf=vkaddr of reply buffer, and uio describing the user-given iovecs. check for oversize.
-	
+	// XXX write to user. use uiomove with buf=vkaddr of reply buffer,
+	// and uio describing the user-given iovecs. check for oversize.
+
 	log("success :3");
 fail:
 	if (mutexed) {
@@ -1006,7 +1103,7 @@ fail:
 	if (replymapped) bus_dmamem_unmap(sc->sc_dmat, replyptr, reply->size);
 
 	if (!completed) {
-		log("... IRREGULAR: command abandoned. not cleaning reply yet.");
+		log("... IRREGULAR: command abandoned. not cleaning reply yet");
 	}
 	if (completed) {
 		mtx_enter(&sc->sc_mtx);
@@ -1022,6 +1119,7 @@ fail:
 		mtx_leave(&sc->sc_mtx);
 	}
 	if (reply) {
+		// XXX now handled in vkey_reply_recycle task.
 		// bus_dmamap_unload(sc->sc_dmat, reply->map);
 		// bus_dmamem_free(sc->sc_dmat, reply->segs, reply->nsegs);
 		// bus_dmamap_destroy(sc->sc_dmat, reply->map);
@@ -1036,7 +1134,8 @@ fail:
 	if (replymap) bus_dmamap_destroy(sc->sc_dmat, replymap);
 	if (loaded) bus_dmamap_unload(sc->sc_dmat, uiomap);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, uiomap);
-	log("cmd done: ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
+	log("cmd done: ncmd=%u, nreplycmd=%u, nreplyfree=%u",
+	    sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
 	log("return with error=%d", ret);
 	return ret;
 }
@@ -1064,7 +1163,9 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	case VKEYIOC_CMD:
 		while (bounce != 0) {
 			ret = vkeyioctl_cmd(sc, p, (void *)data, &bounce);
-			ensure(!bounce, "blocked bounce. reply oversize, requires %zu bytes", bounce);
+			ensure(!bounce,
+			    "blocked bounce. reply too big, requires %zu bytes",
+			    bounce);
 			if (bounce) log("bouncing! to size %zu", bounce);
 			i++;
 			ensure(i <= 5, "aborting excessive bouncing");
@@ -1099,43 +1200,50 @@ vkey_intr(void *arg)
 		if (comp->owner != HOST) {
 			// finished processing completions for now
 			log("stopped processing at owner=%x", comp->owner);
-			// ensure(nprocessed > 0, "processed zero completions. interrupt fired too early?");
 			failed = false;
 			break;
 		}
 		sc->sc_dma.comp.head++;
 		sc->sc_dma.comp.head %= sc->sc_dma.comp.count;
 
-		log("processing completion (%u) index %zu, type %d, cmd %llu, reply %llu, replylen=%u, owner=%x",
-				nprocessed, h, comp->type, comp->cmd_cookie, comp->reply_cookie,
-				comp->msglen, comp->owner);
+		log("processing completion (%u) index %zu, type %d, cmd %llu, "
+		    "reply %llu, replylen=%u, owner=%x",
+		    nprocessed, h, comp->type, comp->cmd_cookie,
+		    comp->reply_cookie, comp->msglen, comp->owner);
 
 		mtx_enter(&sc->sc_mtx);
 		mutexed = true;
 
-		struct vkey_cookie key = { .cookie = comp->cmd_cookie, .type = CMD };
-		struct vkey_cookie *cmd = RB_FIND(cookies, &sc->sc_cookies, &key);
+		struct vkey_cookie key =
+		    { .cookie = comp->cmd_cookie, .type = CMD };
+		struct vkey_cookie *cmd =
+		    RB_FIND(cookies, &sc->sc_cookies, &key);
 
-		key = (struct vkey_cookie) { .cookie = comp->reply_cookie, .type = REPLY };
-		struct vkey_cookie *reply = RB_FIND(cookies, &sc->sc_cookies, &key);
+		key.cookie = comp->reply_cookie;
+		key.type = REPLY;
+		struct vkey_cookie *reply =
+		    RB_FIND(cookies, &sc->sc_cookies, &key);
 
 		if (comp->reply_cookie == 0 && comp->msglen == 0) {
 			log("... completion without reply");
 			sc->sc_cmdused[cmd->i] = false;
 			wakeup(&sc->sc_nreplycmd);
 		} else {
-			ensure(reply, "reply not found when expected (INVALID STATE)");
-			log("... reply cookie %llu index %zu", reply->cookie, reply->i);
+			ensure(reply,
+			    "reply not found when expected (INVALID STATE)");
+			log("... reply cookie %llu index %zu",
+			    reply->cookie, reply->i);
 
 			if (cmd) {
-				// if a command exists, it takes ownership of the reply.
+				// if a command exists, the command owns the
+				// reply.
 				cmd->replytype = comp->type;
 				cmd->replylen = comp->msglen;
 				cmd->reply = comp->reply_cookie;
 				cmd->done = true;
 				wakeup(&cmd->done);
 			} else {
- 				log("... completion cmd not found. command abandoned?");
+				log("... completion cmd not found. abandoned?");
 			}
 			task_add(sc->sc_recycletq, &reply->task);
 		}
@@ -1143,7 +1251,7 @@ vkey_intr(void *arg)
 		mutexed = false;
 
 		if (!cmd && reply) {
- 			log("... destroying reply");
+			log("... destroying reply");
 			reply->recyclable = true;
 			wakeup(&reply->recyclable);
 		}
@@ -1158,7 +1266,6 @@ fail:
 
 			vkey_dmamap_sync(sc, COMP, h, BUS_DMASYNC_PREWRITE);
 			comp->owner = DEVICE;
-			// vkey_dmamap_sync(sc, COMP, -1, BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 
 			vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 			log("... CPDBELL: %zu", h);
@@ -1170,8 +1277,10 @@ fail:
 		}
 	}
 
-	log("vkey_intr leave, h=%zu (processed %u) (failing=%d)", sc->sc_dma.comp.head, nprocessed, failed);
+	log("vkey_intr leave, h=%zu (processed %u) (failing=%d)",
+	    sc->sc_dma.comp.head, nprocessed, failed);
 	if (mutexed) mtx_leave(&sc->sc_mtx);
 	return 0;
-	// !!! DO NOT return rings to HOST owner here. let ioctl do that to ensure it has read.
+	// !!! DO NOT return rings to HOST owner here.
+	// let ioctl do that to ensure it has read.
 }
