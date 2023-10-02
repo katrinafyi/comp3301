@@ -432,6 +432,7 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	struct pci_attach_args *pa = aux;
 	printf(": attaching vkey device: bus=%d, device=%d, function=%d\n",
 			pa->pa_bus, pa->pa_device, pa->pa_function);
+	log("recycletq=%p", sc->sc_recycletq);
 
 	mtx_init(&sc->sc_mtx, IPL_BIO);
 	RB_INIT(&sc->sc_cookies);
@@ -797,7 +798,6 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	int ret = EIO;
 	int error = -1;
 	bool mutexed = false, created = false, loaded = false, incremented = false, replymapped = false, completed = false;
-	bool recycled = true;
 	struct vkey_cookie *cmd = NULL, *reply = NULL;
 	bus_dmamap_t replymap = NULL;
 
@@ -1120,7 +1120,7 @@ vkey_intr(void *arg)
 
 		if (comp->reply_cookie == 0 && comp->msglen == 0) {
 			log("... completion without reply");
-			sc->sc_cmdused[h] = false;
+			sc->sc_cmdused[cmd->i] = false;
 			wakeup(&sc->sc_nreplycmd);
 		} else {
 			ensure(reply, "reply not found when expected (INVALID STATE)");
