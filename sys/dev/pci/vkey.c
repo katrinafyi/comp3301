@@ -427,7 +427,7 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 	sc->sc_attached = false;
 	memset(&sc->sc_dma, 0, sizeof(sc->sc_dma));
 	memset(sc->sc_cmdused, 0, sizeof(sc->sc_cmdused));
-	sc->sc_recycletq = taskq_create("vkey replytq", 1, PRIBIO, TASKQ_MPSAFE);
+	sc->sc_recycletq = taskq_create("vkey replytq", 1, PRIBIO, 0);
 
 	struct pci_attach_args *pa = aux;
 	printf(": attaching vkey device: bus=%d, device=%d, function=%d\n",
@@ -776,6 +776,7 @@ vkey_reply_recycle(void *arg)
 
 		RB_INSERT(cookies, &sc->sc_cookies, reply);
 	}
+	mtx_leave(&sc->sc_mtx);
 	return;
 fail:
 	log("INVALID STATE: failed to recycle!");
