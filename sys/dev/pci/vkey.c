@@ -288,7 +288,7 @@ vkey_check(struct vkey_softc *sc)
 	return true;
 fail:
 	log("fault! flags: 0x%x", *(int32_t *)errs);
-	sc->sc_attached = false;
+	// sc->sc_attached = false;
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE | BUS_SPACE_BARRIER_READ);
 	return false;
 }
@@ -554,7 +554,7 @@ vkeyopen(dev_t dev, int mode, int flags, struct proc *p)
 
 	return (0);
 fail:
-	return ENXIO;
+	return EIO;
 }
 
 int
@@ -1152,7 +1152,10 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	if (sc == NULL)
 		return ENXIO;
 
-	int ret = EINVAL;
+	int ret = EIO;
+	ensure(vkey_check(sc), "check failure");
+
+	ret = EINVAL;
 	switch (cmd) {
 	case VKEYIOC_GET_INFO:
 		vi = (void *)data;
