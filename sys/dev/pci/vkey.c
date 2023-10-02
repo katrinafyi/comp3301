@@ -785,6 +785,7 @@ vkey_reply_recycle(void *arg)
 	}
  	wakeup(&sc->sc_nreplycmd);
 
+	log("recycled: ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
 	mtx_leave(&sc->sc_mtx);
 	return;
 fail:
@@ -843,7 +844,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 
 	log("cookie: %llu, type: %u, cmdlen: %zu", cmdcook, arg->vkey_cmd, cmduio.uio_resid);
 	while (true) {
-		log("ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
+		log("waiting for cmd slot: ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
 		while (sc->sc_nreplycmd >= sc->sc_dma.cmd.count || sc->sc_cmdused[sc->sc_dma.cmd.head]) {
 			// XXX don't forget to wakeup when decrementing ncmd
 			ensure(0 == msleep_nsec(&sc->sc_nreplycmd, &sc->sc_mtx, PCATCH | PRIBIO, "vkey sc_ncmd", INFSLP),
@@ -893,7 +894,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	sc->sc_ncmd++;
 	sc->sc_nreplycmd++;
 	sc->sc_nreplyfree--;
-	log("ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
+	log("found cmd slot: ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
 
 	ensure(sc->sc_nreplyfree >= 0, "invariant failure!");
 	incremented = true;
@@ -1035,7 +1036,7 @@ fail:
 	if (replymap) bus_dmamap_destroy(sc->sc_dmat, replymap);
 	if (loaded) bus_dmamap_unload(sc->sc_dmat, uiomap);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, uiomap);
-	log("ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
+	log("cmd done: ncmd=%u, nreplycmd=%u, nreplyfree=%u", sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
 	log("return with error=%d", ret);
 	return ret;
 }
