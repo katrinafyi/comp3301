@@ -205,6 +205,12 @@ const uint32_t reply_mask = 1 << 31;
 
 #define VKEY_CMDSHIFT (6)
 #define VKEY_CMDCOUNT (1 << VKEY_CMDSHIFT)
+#define VKEY_COOKIEINIT (1000000)
+
+// the lower VKEY_CMDSHIFT bytes of COOKIEINIT are zero.
+// this lets us store ring indices within cookies.
+CTASSERT(0 == (((1 << VKEY_CMDSHIFT) - 1) & VKEY_COOKIEINIT));
+CTASSERT(0 == VKEY_COOKIEINIT % VKEY_CMDCOUNT);
 
 struct vkey_softc {
 	struct device	 sc_dev;
@@ -461,8 +467,8 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 
 	mtx_init(&sc->sc_mtx, IPL_BIO);
 	RB_INIT(&sc->sc_cookies);
-	sc->sc_cmdgen = 1000;
-	sc->sc_replygen = 200000;
+	sc->sc_cmdgen = VKEY_COOKIEINIT;
+	sc->sc_replygen = 2 * VKEY_COOKIEINIT;
 
 	size_t size0, size1;
 	int error;
@@ -905,10 +911,6 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p,
 	mtx_enter(&sc->sc_mtx);
 	mutexed = true;
 
-	uint64_t cmdcook = sc->sc_cmdgen++;
-
-	log("cookie: %llu, type: %u, cmdlen: %zu",
-	    cmdcook, arg->vkey_cmd, cmduio.uio_resid);
 	while (true) {
 		log("waiting for cmd : ncmd=%u, nreplycmd=%u, nreplyfree=%u",
 		    sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
@@ -968,6 +970,10 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p,
 	}
 
 	// claim cmd descriptor
+	uint64_t cmdcook = sc->sc_cmdgen++;
+	log("cookie: %llu, type: %u, cmdlen: %zu",
+	    cmdcook, arg->vkey_cmd, cmduio.uio_resid);
+
 	cmd = vkey_ring_alloc(sc, CMD, cmdcook, 0, NULL);
 	ensure(cmd, "cmd cookie alloc");
 	log("index: %zu", cmd->i);
@@ -1229,7 +1235,8 @@ vkey_intr(void *arg)
 
 		if (comp->reply_cookie == 0 && comp->msglen == 0) {
 			log("... completion without reply");
-			sc->sc_cmdused[cmd->i] = false;
+			ensure(cmd, "completion cmd was deleted?");
+			sc->sc_cmdused[comp->cmd_cookie % VKEY_CMDCOUNT] = false;
 			wakeup(&sc->sc_nreplycmd);
 		} else {
 			ensure(reply,
