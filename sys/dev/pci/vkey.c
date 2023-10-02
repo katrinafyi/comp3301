@@ -435,8 +435,8 @@ vkey_attach(struct device *parent, struct device *self, void *aux)
 
 	mtx_init(&sc->sc_mtx, IPL_BIO);
 	RB_INIT(&sc->sc_cookies);
-	sc->sc_cmdgen = 10000;
-	sc->sc_replygen = 20000;
+	sc->sc_cmdgen = 1000;
+	sc->sc_replygen = 200000;
 
 	size_t size0, size1;
 	int error;
@@ -746,6 +746,7 @@ vkey_reply_recycle(void *arg)
 		log("recycling REPLY ring from %zu to %ld", reply->i, i2);
 		reply->i = i2;
 		reply->cookie = sc->sc_replygen++;
+		reply->recyclable = false;
 		log("... new cookie %llu", reply->cookie);
 
 		vkey_dmamap_sync(sc, REPLY, reply->i, BUS_DMASYNC_POSTWRITE | BUS_DMASYNC_POSTREAD);
@@ -776,6 +777,13 @@ vkey_reply_recycle(void *arg)
 
 		RB_INSERT(cookies, &sc->sc_cookies, reply);
 	}
+
+	sc->sc_nreplycmd--;
+	if (reply) {
+		sc->sc_nreplyfree++;
+	}
+ 	wakeup(&sc->sc_nreplycmd);
+
 	mtx_leave(&sc->sc_mtx);
 	return;
 fail:
@@ -866,7 +874,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 				// retry loop. we need to verify all the counter variables in one unbroken run.
 				continue;
 			} else {
-				struct vkey_cookie *reply = vkey_ring_alloc(sc, REPLY, cmdcook, bouncesize, replymap);
+				struct vkey_cookie *reply = vkey_ring_alloc(sc, REPLY, sc->sc_replygen++, bouncesize, replymap);
 				ensure(reply, "reply alloc");
 
 				replymap = NULL; // MOVE replymap into cookie
@@ -949,6 +957,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg, s
 	reply = RB_FIND(cookies, &sc->sc_cookies, &key);
 	// ensure(reply, "reply cookie not found in tree. maybe no reply?");
 	log("reply cookie: %p", reply);
+	ensure(reply, "INVALID STATE. reply cookie not received!");
 
 	mtx_leave(&sc->sc_mtx);
 	mutexed = false;
@@ -1008,13 +1017,6 @@ fail:
 		// return to pool if fully completed.
 		mtx_enter(&sc->sc_mtx);
 		sc->sc_ncmd--;
-		if (completed) {
-			sc->sc_nreplycmd--;
-			if (recycled) {
-				sc->sc_nreplyfree++;
-			}
-		}
- 		wakeup(&sc->sc_nreplycmd);
 		wakeup(&sc->sc_ncmd);
 		mtx_leave(&sc->sc_mtx);
 	}
