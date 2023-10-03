@@ -690,6 +690,9 @@ vkey_ring_alloc(struct vkey_softc *sc, enum vkey_ring ring,
 		vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE);
 
 		vkey_dmamap_sync(sc, REPLY, index, BUS_DMASYNC_POSTWRITE);
+
+		bus_dmamap_sync(sc->sc_dmat, cookie->map, 0, cookie->size,
+		    BUS_DMASYNC_PREREAD);
 	}
 
 	RB_INSERT(cookies, &sc->sc_cookies, cookie);
@@ -833,6 +836,8 @@ vkey_reply_recycle(void *arg)
 		vkey_dmamap_sync(sc, REPLY, reply->i,
 		    BUS_DMASYNC_POSTWRITE | BUS_DMASYNC_POSTREAD);
 
+		bus_dmamap_sync(sc->sc_dmat, reply->map, 0, reply->size,
+		    BUS_DMASYNC_PREREAD);
 		// give descriptor back to this command. to be yielded later.
 		sc->sc_nreplycmd++;
 
@@ -855,19 +860,22 @@ fail:
 }
 
 int
-vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p,
-    struct vkey_cmd_arg *arg, size_t *bounce)
+vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 {
 	int ret = EIO;
 	int error = -1;
 	bool mutexed = false, created = false, loaded = false,
 	    incremented = false, replymapped = false, completed = false;
+
+	bool bounced = false;
+	bus_dma_segment_t bouncesegs[4];
+	int bouncensegs = -1;
+	caddr_t bounceptr = NULL;
+
 	struct vkey_cookie *cmd = NULL, *reply = NULL;
 	bus_dmamap_t replymap = NULL;
 
-	// prevent over-bouncing
-	size_t bouncesize = *bounce;
-	*bounce = 0;
+	size_t replysize = defaultreplysize;
 
 	struct uio cmduio, replyuio;
 
@@ -880,6 +888,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p,
 	cmduio.uio_rw = UIO_WRITE; // write to device
 	cmduio.uio_segflg = UIO_USERSPACE;
 	cmduio.uio_procp = p;
+	size_t cmdsize = cmduio.uio_resid;
 
 	replyuio.uio_offset = 0;
 	replyuio.uio_iov = arg->vkey_out;
@@ -899,6 +908,27 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p,
 
 	error = bus_dmamap_load_uio(sc->sc_dmat, uiomap, &cmduio,
 	    BUS_DMA_WAITOK | BUS_DMA_WRITE);
+	if (error) {
+		log("basic load uio failed: %d", error);
+		error = bus_dmamem_alloc(sc->sc_dmat, cmdsize, 0, 0,
+		    bouncesegs, NITEMS(bouncesegs), &bouncensegs,
+		    BUS_DMA_WAITOK | BUS_DMA_ZERO);
+		ensure(!error, "bounce dmamem_alloc failed %d", error);
+
+		error = bus_dmamem_map(sc->sc_dmat, bouncesegs, bouncensegs,
+		    cmdsize, &bounceptr, BUS_DMA_WAITOK);
+		ensure(!error, "bounce dmamem_map failed %d", error);
+
+		error = uiomove(bounceptr, cmdsize, &cmduio);
+		ensure(!error, "bounce uiomove fault %d", error);
+		ensure(cmduio.uio_resid == 0,
+		    "bounce cmd not fully copied. %zu bytes remain",
+		    cmduio.uio_resid);
+
+		error = bus_dmamap_load_raw(sc->sc_dmat, uiomap, bouncesegs,
+		    bouncensegs, cmdsize, BUS_DMA_WAITOK);
+		ensure(!error, "bounce dmamap_load_raw failed %d", error);
+	}
 	ensure2(loaded, !error, "load_uio");
 
 	// *************** MUTEX ENTER  ***************
@@ -908,7 +938,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p,
 	uint64_t cmdcook = sc->sc_cmdgen++;
 
 	log("cookie: %llu, type: %u, cmdlen: %zu",
-	    cmdcook, arg->vkey_cmd, cmduio.uio_resid);
+	    cmdcook, arg->vkey_cmd, cmdsize);
 	while (true) {
 		log("waiting for cmd : ncmd=%u, nreplycmd=%u, nreplyfree=%u",
 		    sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
@@ -939,9 +969,9 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p,
 				mutexed = false;
 
 				log("allocating new reply buffer of size %zu",
-				    bouncesize);
+				    replysize);
 				error = bus_dmamap_create(
-				    sc->sc_dmat, bouncesize, 4, bouncesize, 0,
+				    sc->sc_dmat, replysize, 4, replysize, 0,
 				    BUS_DMA_WAITOK | BUS_DMA_ALLOCNOW,
 				    &replymap);
 				ensure(!error, "create");
@@ -954,7 +984,7 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p,
 			} else {
 				struct vkey_cookie *reply =
 				    vkey_ring_alloc(sc, REPLY,
-				    sc->sc_replygen++, bouncesize, replymap);
+				    sc->sc_replygen++, replysize, replymap);
 				ensure(reply, "reply alloc");
 
 				replymap = NULL; // MOVE replymap into cookie
@@ -1053,11 +1083,12 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p,
 	mutexed = false;
 
 	if (cmd->replylen > reply->size) {
-		*bounce = cmd->replylen;
+		// *bounce = cmd->replylen;
+		ret = ENODEV;
 		ensure(cmd->replylen <= reply->size,
 		    "reply size %zu exceeds driver buffer size %zu",
 		    cmd->replylen, reply->size);
-		ret = ENODEV;
+		ret = EIO;
 	}
 
 	caddr_t replyptr;
@@ -1133,6 +1164,10 @@ fail:
 	}
 	if (replymap) bus_dmamap_destroy(sc->sc_dmat, replymap);
 	if (loaded) bus_dmamap_unload(sc->sc_dmat, uiomap);
+	if (bounceptr != NULL)
+		bus_dmamem_unmap(sc->sc_dmat, bounceptr, cmdsize);
+	if (bouncensegs >= 0)
+		bus_dmamem_free(sc->sc_dmat, bouncesegs, bouncensegs);
 	if (created) bus_dmamap_destroy(sc->sc_dmat, uiomap);
 	log("cmd done: ncmd=%u, nreplycmd=%u, nreplyfree=%u",
 	    sc->sc_ncmd, sc->sc_nreplycmd, sc->sc_nreplyfree);
@@ -1164,15 +1199,7 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		ret = 0;
 		break;
 	case VKEYIOC_CMD:
-		while (bounce != 0) {
-			ret = vkeyioctl_cmd(sc, p, (void *)data, &bounce);
-			ensure(!bounce,
-			    "blocked bounce. reply too big, requires %zu bytes",
-			    bounce);
-			if (bounce) log("bouncing! to size %zu", bounce);
-			i++;
-			ensure(i <= 5, "aborting excessive bouncing");
-		}
+		ret = vkeyioctl_cmd(sc, p, (void *)data);
 		break;
 	}
 fail:
