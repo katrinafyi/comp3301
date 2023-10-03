@@ -867,7 +867,6 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	bool mutexed = false, created = false, loaded = false,
 	    incremented = false, replymapped = false, completed = false;
 
-	bool bounced = false;
 	bus_dma_segment_t bouncesegs[4];
 	int bouncensegs = -1;
 	caddr_t bounceptr = NULL;
@@ -906,8 +905,9 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	    BUS_DMA_ALLOCNOW | BUS_DMA_64BIT | BUS_DMA_WAITOK, &uiomap);
 	ensure2(created, !error, "bus_dmamap_create");
 
-	error = bus_dmamap_load_uio(sc->sc_dmat, uiomap, &cmduio,
-	    BUS_DMA_WAITOK | BUS_DMA_WRITE);
+	// error = bus_dmamap_load_uio(sc->sc_dmat, uiomap, &cmduio,
+	//     BUS_DMA_WAITOK | BUS_DMA_WRITE);
+	error = -12345;
 	if (error) {
 		log("basic load uio failed: %d", error);
 		error = bus_dmamem_alloc(sc->sc_dmat, cmdsize, 0, 0,
@@ -1180,8 +1180,6 @@ vkeyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	printf("vkey %d ioctl\n", dev);
 	struct vkey_info_arg *vi;
-	size_t bounce = defaultreplysize;
-	unsigned i = 0;
 
 	struct vkey_softc *sc = (void *)device_lookup(&vkey_cd, minor(dev));
 	if (sc == NULL)
