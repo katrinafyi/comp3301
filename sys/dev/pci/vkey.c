@@ -905,11 +905,10 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 	    BUS_DMA_ALLOCNOW | BUS_DMA_64BIT | BUS_DMA_WAITOK, &uiomap);
 	ensure2(created, !error, "bus_dmamap_create");
 
-	// error = bus_dmamap_load_uio(sc->sc_dmat, uiomap, &cmduio,
-	//     BUS_DMA_WAITOK | BUS_DMA_WRITE);
-	error = -12345;
+	error = bus_dmamap_load_uio(sc->sc_dmat, uiomap, &cmduio,
+	    BUS_DMA_WAITOK | BUS_DMA_WRITE);
 	if (error) {
-		log("basic load uio failed: %d", error);
+		log("basic load uio of size %zu failed: %d", cmdsize, error);
 		error = bus_dmamem_alloc(sc->sc_dmat, cmdsize, 0, 0,
 		    bouncesegs, NITEMS(bouncesegs), &bouncensegs,
 		    BUS_DMA_WAITOK | BUS_DMA_ZERO);
@@ -921,6 +920,8 @@ vkeyioctl_cmd(struct vkey_softc *sc, struct proc *p, struct vkey_cmd_arg *arg)
 
 		error = uiomove(bounceptr, cmdsize, &cmduio);
 		ensure(!error, "bounce uiomove fault %d", error);
+		log("... moved %lu bytes into bounce buffer",
+		    cmdsize - cmduio.uio_resid);
 		ensure(cmduio.uio_resid == 0,
 		    "bounce cmd not fully copied. %zu bytes remain",
 		    cmduio.uio_resid);
