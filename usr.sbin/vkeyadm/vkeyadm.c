@@ -37,7 +37,7 @@
 #include "authfd.h"
 #include "log.h"
 
-#define	VKEY_MAX_MSG	(2*16384)
+#define	VKEY_MAX_MSG	(16384)
 #define	VKEY_DEVFMT	"/dev/vkey%u"
 #define	VKEY_MAXDEV	8
 
@@ -71,6 +71,7 @@ usage(void)
 }
 
 static int verbose = 0;
+static char cmdx = 0;
 static char devpath[PATH_MAX];
 
 int
@@ -85,10 +86,13 @@ main(int argc, char *argv[])
 
 	snprintf(devpath, sizeof(devpath), VKEY_DEVFMT, 0);
 
-	while ((ch = getopt(argc, argv, "vd:")) != -1) {
+	while ((ch = getopt(argc, argv, "vd:x:")) != -1) {
 		switch (ch) {
 		case 'v':
 			++verbose;
+			break;
+		case 'x':
+			cmdx = strtol(optarg, NULL, 0);
 			break;
 		case 'd':
 			if (optarg[0] == '/') {
@@ -177,6 +181,7 @@ do_ioctl_cmd(int fd, struct vkey_cmd_arg *cmd, struct sshbuf *inbuf,
 			fatal_fr(rc, "sshbuf_reserve");
 		cmd->vkey_out[0].iov_len = VKEY_MAX_MSG;
 	}
+	if (cmdx) cmd->vkey_cmd = cmdx;
 	if ((rc = ioctl(fd, VKEYIOC_CMD, cmd)))
 		return (rc);
 	adjust = VKEY_MAX_MSG - cmd->vkey_rlen;
