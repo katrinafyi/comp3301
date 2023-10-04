@@ -288,6 +288,10 @@ vkey_check(struct vkey_softc *sc)
 	return true;
 fail:
 	log("fault! flags: 0x%x", *(int32_t *)errs);
+	uprintf("vkey device fault. panic!");
+	printf("\n\n\n\n");
+	panic("vkey device faulting! unit=%d, xname=%s",
+	    sc->sc_dev.dv_unit, sc->sc_dev.dv_xname);
 	// sc->sc_attached = false;
 	vkey_bar_barrier(sc, BUS_SPACE_BARRIER_WRITE | BUS_SPACE_BARRIER_READ);
 	return false;
