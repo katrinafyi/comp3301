@@ -577,6 +577,9 @@ bdev_decl(sw);
 bdev_decl(vnd);
 cdev_decl(vnd);
 
+bdev_decl(qcow);
+cdev_decl(qcow);
+
 cdev_decl(ch);
 
 bdev_decl(sd);

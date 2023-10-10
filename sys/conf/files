@@ -547,6 +547,7 @@ file	dev/ic/ufshci.c			ufshci
 
 # legitimate pseudo-devices
 pseudo-device vnd: disk
+pseudo-device qcow: disk
 pseudo-device rd: disk
 file	dev/rd.c			rd needs-flag
 
@@ -669,6 +670,7 @@ file dev/ic/tea5757.c			tea5757
 file dev/midi.c				midi | midibus		needs-flag
 file dev/mulaw.c			audio			needs-flag
 file dev/vnd.c				vnd			needs-flag
+file dev/qcow.c				qcow			needs-flag
 file dev/rnd.c
 file dev/video.c			video			needs-flag
 file isofs/cd9660/cd9660_bmap.c		cd9660

@@ -80,6 +80,7 @@ pseudo-device	nmea	1	# NMEA 0183 line discipline
 pseudo-device	msts	1	# MSTS line discipline
 pseudo-device	endrun	1	# EndRun line discipline
 pseudo-device	vnd	4	# vnode disk devices
+pseudo-device	qcow	1	# QCOW2 disk devices
 pseudo-device	ksyms	1	# kernel symbols device
 pseudo-device	kstat		# kernel statistics device
 

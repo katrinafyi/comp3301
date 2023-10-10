@@ -48,6 +48,7 @@ bdev_decl(fd);
 #include "cd.h"
 #include "uk.h"
 #include "vnd.h"
+#include "qcow.h"
 #include "rd.h"
 
 struct bdevsw	bdevsw[] =
@@ -63,7 +64,7 @@ struct bdevsw	bdevsw[] =
 	bdev_notdef(),			/* 8 */
 	bdev_notdef(),			/* 9 */
 	bdev_notdef(),			/* 10 */
-	bdev_notdef(),			/* 11 */
+	bdev_disk_init(NQCOW,qcow),	/* 11: QCOW2 disk driver */
 	bdev_notdef(),			/* 12 */
 	bdev_notdef(),			/* 13 */
 	bdev_disk_init(NVND,vnd),	/* 14: vnode disk driver */
@@ -188,7 +189,7 @@ struct cdevsw	cdevsw[] =
 	cdev_tty_init(NCOM,com),	/* 8: serial port */
 	cdev_disk_init(NFD,fd),		/* 9: floppy disk */
 	cdev_vmm_init(NVMM,vmm),	/* 10 vmm */
-	cdev_notdef(),			/* 11: Sony CD-ROM */
+	cdev_disk_init(NQCOW,qcow),	/* 11: QCOW2 disk driver */
 	cdev_wsdisplay_init(NWSDISPLAY,	/* 12: frame buffers, etc. */
 	    wsdisplay),
 	cdev_disk_init(NSD,sd),		/* 13: SCSI disk */
@@ -345,7 +346,7 @@ const int chrtoblktbl[] = {
 	/*  8 */	NODEV,
 	/*  9 */	2,		/* fd */
 	/* 10 */	NODEV,
-	/* 11 */	NODEV,
+	/* 11 */	11,		/* qcow */
 	/* 12 */	NODEV,
 	/* 13 */	4,		/* sd */
 	/* 14 */	NODEV,

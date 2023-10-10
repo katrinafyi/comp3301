@@ -276,6 +276,7 @@ attach	ipmi at mainbus
 # device major numbers
 #
 
+major	{qcow = 11}
 major	{vnd = 14}
 major	{sd = 4}
 major	{st = 5}

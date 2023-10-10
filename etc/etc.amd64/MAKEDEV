@@ -35,6 +35,7 @@
 #	rd*	"rd" pseudo-disks
 #	sd*	SCSI disks, including flopticals
 #	vnd*	"file" pseudo-disk devices
+#	qcow*	"file" pseudo-disk devices
 #	wd*	"winchester" disk drives (ST506, IDE, ESDI, RLL, ...)
 # Tapes:
 #	ch*	SCSI media changers
@@ -550,6 +551,10 @@ st*)
 
 ch*)
 	M ch$U c 17 $U 660 operator
+	;;
+
+qcow*)
+	dodisk qcow $U 11 11 $U 0
 	;;
 
 vnd*)

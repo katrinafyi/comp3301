@@ -1,10 +1,10 @@
-.\" $OpenBSD: MAKEDEV.8,v 1.97 2023/01/14 12:19:11 kettenis Exp $
+.\" $OpenBSD$
 .\"
 .\" THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
 .\" generated from:
 .\"
 .\"	OpenBSD: etc.amd64/MAKEDEV.md,v 1.82 2023/01/14 12:15:12 kettenis Exp 
-.\"	OpenBSD: MAKEDEV.common,v 1.119 2023/01/14 12:15:12 kettenis Exp 
+.\"	OpenBSD: MAKEDEV.common,v 1.120 2023/01/28 11:04:47 phessler Exp 
 .\"	OpenBSD: MAKEDEV.man,v 1.9 2017/06/06 08:11:23 tb Exp 
 .\"	OpenBSD: MAKEDEV.mansub,v 1.2 2004/02/20 19:13:01 miod Exp 
 .\"
@@ -23,7 +23,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 14 2023 $
+.Dd $Mdocdate: June 6 2017 $
 .Dt MAKEDEV 8 amd64
 .Os
 .Sh NAME
@@ -92,6 +92,10 @@ SCSI disks, including flopticals, see
 .Dq file
 pseudo-disk devices, see
 .Xr vnd 4 .
+.It Ar qcow*
+.Dq file
+pseudo-disk devices, see
+.Xr qcow 4 .
 .It Ar wd*
 .Dq winchester
 disk drives (ST506, IDE, ESDI, RLL, ...), see

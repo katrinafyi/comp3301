@@ -254,7 +254,9 @@ _mkdev(flo, fd*,
 	M r${nam}i	c $chr Add($n, 8) 640 operator-}, 664)dnl
 __devitem(wd, {-wd*-}, {-quote(winchester)disk drives (ST506{-,-} IDE{-,-} ESDI{-,-} RLL{-,-} ...)-})dnl
 __devitem(vnd, vnd*, quote(file)pseudo-disk devices)dnl
+__devitem(qcow, qcow*, quote(file)pseudo-disk devices)dnl
 _mkdev(vnd, vnd*, {-dodisk vnd $U major_vnd_b major_vnd_c $U 0{--}ifstep(vnd)-})dnl
+_mkdev(qcow, qcow*, {-dodisk qcow $U major_qcow_b major_qcow_c $U 0{--}ifstep(qcow)-})dnl
 dnl
 dnl For normal disk devices, add a disk_q entry; anything else define like
 dnl the rest (such as vnd above).
