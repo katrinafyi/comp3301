@@ -39,6 +39,34 @@
 
 #include <dev/qcowvar.h>
 
+
+#define NITEMS(x) (sizeof(x) / sizeof(*(x)))
+
+#define log(msg, ...) \
+    printf("%s:%d\t" msg "\n", __func__, __LINE__, ##__VA_ARGS__)
+
+#define _STR(x) #x
+#define STR(x) _STR(x)
+
+#define ensure2(flag, cond, msg, ...) \
+do {\
+	*(&(flag)) = (cond);\
+	if (!(flag)) {\
+		log(msg ": assertion `%s' failed! ", ##__VA_ARGS__, STR(cond));\
+		goto fail;\
+	}\
+} while (0)
+
+#define _CONCAT(x, y) x ## y
+#define CONCAT(x, y) _CONCAT(x, y)
+
+#define ensure(cond, msg, ...)\
+do {\
+	bool CONCAT(ensure_flag, __LINE__);\
+	ensure2(CONCAT(ensure_flag, __LINE__), cond, msg, ##__VA_ARGS__);\
+} while (0)
+
+
 #define QCOW_NLEN	(QCOW2_BACKING_FILE_SIZE + 1) /* add nul */
 
 struct qcow_softc {
@@ -419,6 +447,7 @@ int
 qcowioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct qcow_softc *sc;
+	struct qcow_fname *fnameargs = NULL;
 	//struct disklabel *lp;
 	int error = 0;
 
@@ -431,6 +460,21 @@ qcowioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		return (ENXIO);
 
 	switch (cmd) {
+	case QCOWIOCFNAME:
+		fnameargs = (void *)data;
+		if (sc->sc_fnamelen == 0)
+			error = ENOENT;
+		if (error) break;
+
+		error = copyoutstr(sc->sc_fname, fnameargs->qc_name, sc->sc_fnamelen, NULL);
+		if (error) break;
+
+		error = 0;
+		break;
+	case QCOWIOCSTAT:
+		error = 1;
+		break;
+
 	case QCOWIOCDETACH:
 		error = qcow_detach(sc, dev, flag, *(unsigned int *)data);
 		break;
