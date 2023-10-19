@@ -275,12 +275,25 @@ qcowstrategy(struct buf *bp)
 	}
 	qcow_leave(sc);
 
+	log("begin strategy. resid=%zu, lblkno=%lld",
+			bp->b_resid, bp->b_lblkno);
+
+	off_t off;
+	struct partition *p;
+	p = &sc->sc_dk.dk_label->d_partitions[DISKPART(bp->b_dev)];
+	off = DL_GETPOFFSET(p) * sc->sc_dk.dk_label->d_secsize +
+	    (u_int64_t)bp->b_blkno * DEV_BSIZE;
+
+	bp->b_error = vn_rdwr((bp->b_flags & B_READ) ? UIO_READ : UIO_WRITE,
+	    sc->sc_vp, bp->b_data, bp->b_bcount, off, UIO_SYSSPACE,
+	    IO_NOCACHE | IO_SYNC | IO_NOLIMIT, sc->sc_ucred, &bp->b_resid, curproc);
+
 	/* XXX do actual qcow IO here */
-	bp->b_error = EIO;
 bad:
+	bp->b_error = EIO;
 	bp->b_flags |= B_ERROR;
 	bp->b_resid = bp->b_bcount;
-//done:
+done:
 	s = splbio();
 	biodone(bp);
 	splx(s);
