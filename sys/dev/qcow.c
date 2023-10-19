@@ -82,6 +82,9 @@ static struct qcow_driver qd = {
 	.qd_lock	= RWLOCK_INITIALIZER("qcowdrv")
 };
 
+static int	 qcow_getdisklabel(dev_t, struct qcow_softc *,
+		     struct disklabel *, int);
+
 void
 qcowattach(int num)
 {
@@ -179,7 +182,7 @@ qcow_disk_open(struct qcow_softc *sc, int part, int mode)
 	if (error != 0)
 		return (0);
 
-	error = disk_openpart(&sc->sc_dk, part, mode, 0);
+	error = disk_openpart(&sc->sc_dk, part, mode, 1);
 	disk_unlock(&sc->sc_dk);
 
 	return (error);
@@ -190,18 +193,27 @@ qcowopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	dev_t part = DISKPART(dev);
 	struct qcow_softc *sc;
+	int raw = part == RAW_PART && fmt == S_IFCHR;
 	int error;
 
-	/* allow opens of /dev/rqcowXc for attach ioctls */
-	if (part == RAW_PART && fmt == S_IFCHR)
-		return (0);
-
 	sc = qcow_enter(dev);
-	if (sc == NULL)
+	if (sc == NULL) {
+		/* allow opens of /dev/rqcowXc for attach ioctls */
+		if (raw)
+			return (0);
+
 		return (ENXIO);
-	if (ISSET(flags, FWRITE) && !ISSET(sc->sc_rw, FWRITE)) {
-		error = EPERM;
+	}
+
+	if (ISSET(flags, FWRITE) && !ISSET(sc->sc_rw, FWRITE) && !raw) {
+		error = EACCES;
 		goto leave;
+	}
+
+	if (sc->sc_dk.dk_openmask == 0) {
+		error = qcow_getdisklabel(dev, sc, sc->sc_dk.dk_label, 0);
+		if (error == EIO || error == ENXIO)
+			goto leave;
 	}
 
 	error = qcow_disk_open(sc, part, fmt);
@@ -350,10 +362,6 @@ qcow_attach(dev_t dev, int flag, const struct qcow_attach *qc, struct proc *p)
 
 	disk_attach(&sc->sc_dev, &sc->sc_dk);
 
-	error = qcow_disk_open(sc, part, VCHR);
-	if (error != 0)
-		panic("%s: open of new disk failed", sc->sc_dev.dv_xname);
-
 	rw_exit(&qd.qd_lock);
 
 	return (error);
@@ -419,7 +427,7 @@ int
 qcowioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct qcow_softc *sc;
-	//struct disklabel *lp;
+	struct disklabel *lp;
 	int error = 0;
 
 	if (cmd == QCOWIOCATTACH)
@@ -436,14 +444,14 @@ qcowioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		break;
 
 	case DIOCRLDINFO:
-		//lp = malloc(sizeof(*lp), M_TEMP, M_WAITOK);
-		//vndgetdisklabel(dev, sc, lp, 0);
-		//*(sc->sc_dk.dk_label) = *lp;
-		//free(lp, M_TEMP, sizeof(*lp));
+		lp = malloc(sizeof(*lp), M_TEMP, M_WAITOK);
+		qcow_getdisklabel(dev, sc, lp, 0);
+		*(sc->sc_dk.dk_label) = *lp;
+		free(lp, M_TEMP, sizeof(*lp));
 		break;
 
 	case DIOCGPDINFO:
-		//vndgetdisklabel(dev, sc, (struct disklabel *)data, 1);
+		qcow_getdisklabel(dev, sc, (struct disklabel *)data, 1);
 		break;
 
 	case DIOCGDINFO:
@@ -468,7 +476,7 @@ qcowioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			break;
 
 		error = setdisklabel(sc->sc_dk.dk_label,
-		    (struct disklabel *)data, /* sc->sc_dk.dk_openmask */ 0);
+		    (struct disklabel *)data, sc->sc_dk.dk_openmask);
 		if (error == 0) {
 			if (cmd == DIOCWDINFO)
 				error = writedisklabel(DISKLABELDEV(dev),
@@ -500,6 +508,45 @@ qcowdump(dev_t dev, daddr_t blkno, caddr_t va, size_t size)
 {
 	/* we don't support dumping to qcow. */
 	return (ENXIO);
+}
+
+static int
+qcow_getdisklabel(dev_t dev, struct qcow_softc *sc, struct disklabel *lp,
+    int spoofonly)
+{
+	memset(lp, 0, sizeof(*lp));
+
+	/* disk geometry (i hate this stuff) */
+
+	/* # of bytes per sector */
+	lp->d_secsize = sc->sc_secsize;
+
+	/* # of data sectors per track */
+	lp->d_nsectors = 100;
+
+	/* # of tracks per cylinder */
+	lp->d_ntracks = 1;
+
+	/* # of data sectors per cylinder */
+	lp->d_secpercyl = lp->d_ntracks * lp->d_nsectors;
+
+	/* # of data cylinders per unit */
+	lp->d_ncylinders = sc->sc_seccount / lp->d_secpercyl;
+
+	/* # of data sectors (low part) */
+	/* lp->d_secperunit = ??; */
+
+	lp->d_type = DTYPE_VND;
+	strncpy(lp->d_typename, "QCOW2 File", sizeof(lp->d_typename));
+	strncpy(lp->d_packname, UQUSERNAME, sizeof(lp->d_packname));
+	DL_SETDSIZE(lp, sc->sc_seccount);
+	lp->d_version = 1;
+
+	lp->d_magic = DISKMAGIC;
+	lp->d_magic2 = DISKMAGIC;
+	lp->d_checksum = dkcksum(lp);
+
+	return (readdisklabel(DISKLABELDEV(dev), qcowstrategy, lp, spoofonly));
 }
 
 RBT_GENERATE(qcow_softcs, qcow_softc, sc_entry, qcow_cmp);
