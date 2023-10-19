@@ -181,6 +181,8 @@ qcow_enter(dev_t dev)
 		refcnt_take(&sc->sc_refs);
 	rw_exit_read(&qd.qd_lock);
 
+	log("qcow_enter: %p", sc);
+
 	return (sc);
 }
 
@@ -368,6 +370,8 @@ qcow_attach(dev_t dev, int flag, const struct qcow_attach *qc, struct proc *p)
 	sc->sc_ucred = crhold(p->p_ucred);
 	sc->sc_rw = rw;
 
+	log("qcow attach: %s", sc->sc_fname);
+
 	error = rw_enter(&qd.qd_lock, RW_WRITE|RW_INTR);
 	if (error != 0)
 		goto freefname;
@@ -446,6 +450,7 @@ leave:
 int
 qcowioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
+	log("ioctl");
 	struct qcow_softc *sc;
 	struct qcow_fname *fnameargs = NULL;
 	//struct disklabel *lp;
@@ -465,8 +470,12 @@ qcowioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		if (sc->sc_fnamelen == 0)
 			error = ENOENT;
 		if (error) break;
+		log("ioc fname: %s (%zu)", sc->sc_fname, sc->sc_fnamelen);
 
-		error = copyoutstr(sc->sc_fname, fnameargs->qc_name, sc->sc_fnamelen, NULL);
+		error = EFBIG;
+		ensure(sc->sc_fnamelen <= sizeof(fnameargs->qc_name), "name output buffer small!");
+
+		error = kcopy(sc->sc_fname, fnameargs->qc_name, sc->sc_fnamelen);
 		if (error) break;
 
 		error = 0;
@@ -526,7 +535,7 @@ qcowioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		error = ENOTTY;
 		break;
 	}
-
+fail:
 	qcow_leave(sc);
 
 	return (error);
