@@ -280,17 +280,19 @@ void
 qcowstrategy(struct buf *bp)
 {
 	struct qcow_softc *sc;
+	int error;
 	int s;
 
 	sc = qcow_enter(bp->b_dev);
 	if (sc == NULL) {
 		bp->b_error = ENXIO;
-		goto bad;
+		goto fail;
 	}
 	qcow_leave(sc);
 
-	log("begin strategy. resid=%zu, lblkno=%lld",
-			bp->b_resid, bp->b_lblkno);
+	log("begin strategy. resid=%zu, lblkno=%lld, part=%d",
+			bp->b_resid, bp->b_lblkno,
+			DISKPART(bp->b_dev));
 
 	off_t off;
 	struct partition *p;
@@ -298,16 +300,24 @@ qcowstrategy(struct buf *bp)
 	off = DL_GETPOFFSET(p) * sc->sc_dk.dk_label->d_secsize +
 	    (u_int64_t)bp->b_blkno * DEV_BSIZE;
 
+	struct vattr va;
+	error = VOP_GETATTR(bp->b_vp, &va, sc->sc_ucred, curproc);
+	ensure(error, "VOP_GETATTR returned %d", error);
+
+	off = va.va_size;
+	log("size=%lld", off);
+
+	/* XXX do actual qcow IO here */
 	bp->b_error = vn_rdwr((bp->b_flags & B_READ) ? UIO_READ : UIO_WRITE,
 	    sc->sc_vp, bp->b_data, bp->b_bcount, off, UIO_SYSSPACE,
 	    IO_NOCACHE | IO_SYNC | IO_NOLIMIT, sc->sc_ucred, &bp->b_resid, curproc);
+	goto done;
 
-	/* XXX do actual qcow IO here */
-bad:
+fail:
 	bp->b_error = EIO;
 	bp->b_flags |= B_ERROR;
 	bp->b_resid = bp->b_bcount;
-// done:
+done:
 	s = splbio();
 	biodone(bp);
 	splx(s);
