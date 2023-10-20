@@ -508,7 +508,8 @@ qcowioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		error = 0;
 		break;
 	case QCOWIOCSTAT:
-		error = 1;
+		log("qcow stat");
+		error = vn_stat(sc->sc_vp, (struct stat *)data, p);
 		break;
 
 	case QCOWIOCDETACH:
