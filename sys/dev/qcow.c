@@ -85,6 +85,14 @@ struct qcow_softc {
 	int			 sc_rw;
 };
 
+struct qcow_cluster {
+	uint64_t index;
+	uint64_t offset;
+
+	bool allocated;
+	struct rwlock rw;
+};
+
 RBT_HEAD(qcow_softcs, qcow_softc);
 
 static inline int
@@ -300,11 +308,13 @@ qcowstrategy(struct buf *bp)
 	off = DL_GETPOFFSET(p) * sc->sc_dk.dk_label->d_secsize +
 	    (u_int64_t)bp->b_blkno * DEV_BSIZE;
 
-	struct vattr va;
-	error = VOP_GETATTR(bp->b_vp, &va, sc->sc_ucred, curproc);
-	ensure(error, "VOP_GETATTR returned %d", error);
+	struct stat stat;
+	log("b_proc=%p, curproc=%p", bp->b_proc, curproc);
+	error = vn_stat(sc->sc_vp, &stat, curproc);
+	// error = VOP_GETATTR(bp->b_vp, &stat, sc->sc_ucred, curproc);
+	ensure(!error, "vn_stat returned %d", error);
 
-	off = va.va_size;
+	off = stat.st_size;
 	log("size=%lld", off);
 
 	/* XXX do actual qcow IO here */
