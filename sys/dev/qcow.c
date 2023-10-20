@@ -307,7 +307,7 @@ bad:
 	bp->b_error = EIO;
 	bp->b_flags |= B_ERROR;
 	bp->b_resid = bp->b_bcount;
-done:
+// done:
 	s = splbio();
 	biodone(bp);
 	splx(s);
