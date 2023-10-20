@@ -2,8 +2,8 @@
 _KERNEL
 -nostdinc
 -include
-/usr/include/sys/types.h
+usr.include/sys/types.h
 -include
-/usr/include/sys/time.h
+usr.include/sys/time.h
 -Iusr.include
 -Isys
