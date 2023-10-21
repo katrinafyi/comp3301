@@ -66,8 +66,20 @@ do {\
 	ensure2(CONCAT(ensure_flag, __LINE__), cond, msg, ##__VA_ARGS__);\
 } while (0)
 
+#define ensure3(cond, err, msg, ...)\
+do {\
+	int CONCAT(ensure_err, __LINE__) = error;\
+	ensure(cond, msg, ##__VA_ARGS__);\
+	error = CONCAT(ensure_err, __LINE__);\
+} while (0);
+
+#define modify(variable, macro)\
+variable = macro(variable);
+
 
 #define QCOW_NLEN	(QCOW2_BACKING_FILE_SIZE + 1) /* add nul */
+
+CTASSERT(sizeof(struct qcow2_file_header) == 104);
 
 struct qcow_softc {
 	struct device		 sc_dev;
@@ -78,11 +90,15 @@ struct qcow_softc {
 	size_t			 sc_secsize;
 	size_t			 sc_seccount;
 
+	size_t sc_clustersize;
+
 	char			*sc_fname;
 	size_t			 sc_fnamelen;
 	struct vnode		*sc_vp;
 	struct ucred		*sc_ucred;
 	int			 sc_rw;
+
+	struct qcow2_file_header sc_header;
 };
 
 RBT_HEAD(qcow_softcs, qcow_softc);
@@ -276,6 +292,74 @@ qcowclose(dev_t dev, int flags, int fmt, struct proc *p)
 	return (0);
 }
 
+int
+qcow_cluster_read(struct qcow_softc *sc, enum uio_rw rw, size_t cluster, caddr_t data, size_t len, size_t *remaining)
+{
+	size_t off = cluster * sc->sc_clustersize;
+	return vn_rdwr(rw, sc->sc_vp, data, len, off, UIO_SYSSPACE,
+	    IO_NOCACHE | IO_SYNC | IO_NOLIMIT, sc->sc_ucred, remaining, curproc);
+}
+
+int
+qcow_header_read(struct qcow_softc *sc)
+{
+	int error = EIO;
+	caddr_t buf = NULL;
+	sc->sc_clustersize = sizeof(struct qcow2_file_header);
+	buf = malloc(sc->sc_clustersize, M_DEVBUF, M_WAITOK | M_ZERO);
+	ensure3(buf, ENOMEM, "malloc");
+
+	size_t remaining = sc->sc_clustersize;
+	error = qcow_cluster_read(sc, UIO_READ, 0, buf, sc->sc_clustersize, &remaining);
+	ensure(!error, "read");
+
+	error = kcopy(buf, &sc->sc_header, sizeof(sc->sc_header));
+	ensure(!error, "kcopy");
+
+	struct qcow2_file_header *h = &sc->sc_header;
+	modify(h->magic, betoh32);
+	modify(h->version, betoh32);
+
+	modify(h->backing_file_offset, betoh64);
+	modify(h->backing_file_size, betoh32);
+
+	modify(h->cluster_bits, betoh32);
+
+	modify(h->size, betoh64);
+	modify(h->crypt_method, betoh32);
+
+	modify(h->l1_size, betoh32);
+	modify(h->l1_table_offset, betoh64);
+	modify(h->refcount_table_offset, betoh64);
+	modify(h->refcount_table_clusters, betoh32);
+	modify(h->nb_snapshots, betoh32);
+	modify(h->snapshots_offset, betoh32);
+
+	// v3
+	modify(h->incompatible_features, betoh64);
+	modify(h->compatible_features, betoh64);
+	modify(h->autoclear_features, betoh64);
+	modify(h->refcount_order, betoh32);
+	modify(h->header_length, betoh32);
+
+	log("header %x (expected %x)", h->magic, QCOW2_MAGIC);
+	ensure(h->magic == QCOW2_MAGIC, "magic number mismatch");
+	log("version %d, size %llu", h->version, h->size);
+	ensure(h->version == 2 || h->version == 3, "version mismatch");
+	log("actual header len %d", h->header_length);
+	ensure(h->header_length >= sizeof(struct qcow2_file_header), "header size violation, headersize=%d", h->header_length);
+	log("cluster bits %d, size %d", h->cluster_bits, 1 << h->cluster_bits);
+	ensure(QCOW2_CLUSTER_BITS_MIN <= h->cluster_bits && h->cluster_bits <= QCOW2_CLUSTER_BITS_MAX, "cluster bits = %u", h->cluster_bits);
+
+	error = ENODEV;
+	ensure(h->crypt_method == QCOW2_CRYPT_METHOD_NONE, "driver does not support encryption");
+
+	error = 0;
+fail:
+	if (buf) free(buf, M_DEVBUF, sc->sc_clustersize);
+	return error;
+}
+
 void
 qcowstrategy(struct buf *bp)
 {
@@ -297,10 +381,12 @@ qcowstrategy(struct buf *bp)
 	p = &sc->sc_dk.dk_label->d_partitions[DISKPART(bp->b_dev)];
 	off = DL_GETPOFFSET(p) * sc->sc_dk.dk_label->d_secsize +
 	    (u_int64_t)bp->b_blkno * DEV_BSIZE;
+	// off is VIRTUAL
 
-	bp->b_error = vn_rdwr((bp->b_flags & B_READ) ? UIO_READ : UIO_WRITE,
-	    sc->sc_vp, bp->b_data, bp->b_bcount, off, UIO_SYSSPACE,
-	    IO_NOCACHE | IO_SYNC | IO_NOLIMIT, sc->sc_ucred, &bp->b_resid, curproc);
+	// size_t cluster;
+ //  bp->b_error = qcow_cluster_read(
+ //  		sc, (bp->b_flags & B_READ) ? UIO_READ : UIO_WRITE, cluster, 
+ //  		bp->b_data, bp->b_bcount, &bp->b_resid);
 
 	/* XXX do actual qcow IO here */
 bad:
@@ -379,7 +465,7 @@ qcow_attach(dev_t dev, int flag, const struct qcow_attach *qc, struct proc *p)
 		goto close;
 	}
 
-	sc = qcow_create(dev);
+sc = qcow_create(dev);
 	if (sc == NULL) {
 		error = ENOMEM;
 		goto close;
@@ -399,6 +485,17 @@ qcow_attach(dev_t dev, int flag, const struct qcow_attach *qc, struct proc *p)
 
 	log("qcow attach: %s", sc->sc_fname);
 
+	error = qcow_header_read(sc);
+	if (error) {
+		log("error %d at qcow_header_read", error);
+		goto close;
+	}
+
+	sc->sc_clustersize = 1 << sc->sc_header.cluster_bits;
+
+	sc->sc_secsize = 1 << qc->qc_secbits;
+	sc->sc_seccount = 1; // XXX TODO: derive seccount from header.
+
 	error = rw_enter(&qd.qd_lock, RW_WRITE|RW_INTR);
 	if (error != 0)
 		goto freefname;
@@ -407,8 +504,6 @@ qcow_attach(dev_t dev, int flag, const struct qcow_attach *qc, struct proc *p)
 	if (error != 0)
 		goto rollback;
 
-	sc->sc_secsize = 1 << qc->qc_secbits;
-	sc->sc_seccount = 1; // XXX TODO: derive seccount from header.
 
 	disk_attach(&sc->sc_dev, &sc->sc_dk);
 

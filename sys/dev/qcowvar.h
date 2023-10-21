@@ -50,6 +50,9 @@ struct qcow2_file_header {
 	uint64_t		autoclear_features;
 	uint32_t		refcount_order;
 	uint32_t		header_length;
+
+	// although a v3 header is _at least_ 104 bytes large, we don't
+	// really care about anything beyond the 104 bytes.
 };
 
 #define QCOW2_FEAT_DIRTY		(1ULL << 0)
