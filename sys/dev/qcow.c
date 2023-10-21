@@ -85,14 +85,6 @@ struct qcow_softc {
 	int			 sc_rw;
 };
 
-struct qcow_cluster {
-	uint64_t index;
-	uint64_t offset;
-
-	bool allocated;
-	struct rwlock rw;
-};
-
 RBT_HEAD(qcow_softcs, qcow_softc);
 
 static inline int

@@ -52,6 +52,21 @@ struct qcow2_file_header {
 	uint32_t		header_length;
 };
 
+#ifdef _KERNEL
+
+struct qcow_l1entry {
+	uint8_t rsvd1;
+	char[]
+
+
+
+
+	
+};
+
+
+#endif
+
 #define QCOW2_FEAT_DIRTY		(1ULL << 0)
 #define QCOW2_FEAT_CORRUPT		(1ULL << 1)
 
