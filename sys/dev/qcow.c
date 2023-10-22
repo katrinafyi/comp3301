@@ -372,12 +372,14 @@ qcow_header_read(struct qcow_softc *sc)
 	ensure(h->l1_table_offset % (1 << h->cluster_bits) == 0, "l1 must begin at cluster offset.");
 
 	remaining = sc->sc_l1_size;
+	log("l1 offset=%llu, nentries=%u, size=%zu", h->l1_table_offset, h->l1_num_entries, sc->sc_l1_size);
 	error = qcow_rdwr(sc, UIO_READ, h->l1_table_offset, h->l1_num_entries, (void *)l1buf, &remaining);
 	ensure(!error, "qcow_rdwr for l1");
 	ensure(remaining == 0, "partial read?");
 
 	for (unsigned i = 0; i < h->l1_num_entries; i++) {
 		modify(*(uint64_t *)(l1buf + i), betoh64);
+		// XXX calculate, somehow, the range of virtual addresses under each l1 entry (and hence each l2 table.)
 		log("l1 entry %u: offset=%llu, rsvd=%d, bit=%d",
 				i, l1buf[i].l2offset, l1buf[i].rsvd, l1buf[i].refcountisone);
 	}
