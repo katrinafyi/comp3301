@@ -396,17 +396,19 @@ void
 qcowstrategy(struct buf *bp)
 {
 	struct qcow_softc *sc;
+	int error;
 	int s;
 
 	sc = qcow_enter(bp->b_dev);
 	if (sc == NULL) {
 		bp->b_error = ENXIO;
-		goto bad;
+		goto fail;
 	}
 	qcow_leave(sc);
 
-	log("begin strategy. resid=%zu, lblkno=%lld",
-			bp->b_resid, bp->b_lblkno);
+	log("begin strategy. resid=%zu, lblkno=%lld, part=%d",
+			bp->b_resid, bp->b_lblkno,
+			DISKPART(bp->b_dev));
 
 	off_t off;
 	struct partition *p;
@@ -415,17 +417,27 @@ qcowstrategy(struct buf *bp)
 	    (u_int64_t)bp->b_blkno * DEV_BSIZE;
 	// off is VIRTUAL
 
-	// size_t cluster;
- //  bp->b_error = qcow_cluster_read(
- //  		sc, (bp->b_flags & B_READ) ? UIO_READ : UIO_WRITE, cluster, 
- //  		bp->b_data, bp->b_bcount, &bp->b_resid);
+	struct stat stat;
+	log("b_proc=%p, curproc=%p", bp->b_proc, curproc);
+	error = vn_stat(sc->sc_vp, &stat, curproc);
+	// error = VOP_GETATTR(bp->b_vp, &stat, sc->sc_ucred, curproc);
+	ensure(!error, "vn_stat returned %d", error);
+
+	off = stat.st_size;
+	log("size=%lld", off);
 
 	/* XXX do actual qcow IO here */
-bad:
+	// bp->b_error = vn_rdwr((bp->b_flags & B_READ) ? UIO_READ : UIO_WRITE,
+	//     sc->sc_vp, bp->b_data, bp->b_bcount, off, UIO_SYSSPACE,
+	//     IO_NOCACHE | IO_SYNC | IO_NOLIMIT, sc->sc_ucred, &bp->b_resid, curproc);
+	
+	goto done;
+
+fail:
 	bp->b_error = EIO;
 	bp->b_flags |= B_ERROR;
 	bp->b_resid = bp->b_bcount;
-// done:
+done:
 	s = splbio();
 	biodone(bp);
 	splx(s);
