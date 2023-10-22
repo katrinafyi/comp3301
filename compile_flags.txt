@@ -5,5 +5,5 @@ _KERNEL
 usr.include/sys/types.h
 -include
 usr.include/sys/time.h
--Iusr.include
 -Isys
+-Iusr.include
