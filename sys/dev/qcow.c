@@ -80,7 +80,8 @@ variable = macro(variable);
 #define QCOW_NLEN	(QCOW2_BACKING_FILE_SIZE + 1) /* add nul */
 
 CTASSERT(sizeof(struct qcow2_file_header) == 104);
-CTASSERT(sizeof(struct qcow2_l1_entry) == 8);
+CTASSERT(sizeof(struct qcow2_l1_entry) == sizeof(uint64_t));
+CTASSERT(sizeof(struct qcow2_l2_entry) == sizeof(uint64_t));
 
 struct qcow_softc {
 	struct device		 sc_dev;
@@ -373,15 +374,31 @@ qcow_header_read(struct qcow_softc *sc)
 
 	remaining = sc->sc_l1_size;
 	log("l1 offset=%llu, nentries=%u, size=%zu", h->l1_table_offset, h->l1_num_entries, sc->sc_l1_size);
-	error = qcow_rdwr(sc, UIO_READ, h->l1_table_offset, h->l1_num_entries, (void *)l1buf, &remaining);
+	error = qcow_rdwr(sc, UIO_READ, h->l1_table_offset, sc->sc_l1_size, (void *)l1buf, &remaining);
 	ensure(!error, "qcow_rdwr for l1");
 	ensure(remaining == 0, "partial read?");
 
+	uint64_t entries_per_l2_table = (1 << h->cluster_bits) / sizeof(struct qcow2_l2_entry);
+	uint64_t vbytes_per_l2_table = entries_per_l2_table * (1 << h->cluster_bits);
 	for (unsigned i = 0; i < h->l1_num_entries; i++) {
-		modify(*(uint64_t *)(l1buf + i), betoh64);
+		log("l1 entry %u val = %016llx (before reverse)", i, l1buf[i].val);
+		modify(l1buf[i].val, betoh64);
+		log("l1 entry %u val = %016llx", i, l1buf[i].val);
 		// XXX calculate, somehow, the range of virtual addresses under each l1 entry (and hence each l2 table.)
-		log("l1 entry %u: offset=%llu, rsvd=%d, bit=%d",
-				i, l1buf[i].l2offset, l1buf[i].rsvd, l1buf[i].refcountisone);
+		// note: l2 size = cluster size
+
+		// one l2 entry defines the location of a cluster which assigns "cluster size" vbytes
+		// a l2 table has "cluster size / l2 entry size" entries
+		// a l1 table entry has one l2 table.
+
+		uint64_t off0 = vbytes_per_l2_table * i;
+		uint64_t off1 = off0 + vbytes_per_l2_table - 1;
+
+		size_t off = QCOW2_L1E_OFFSET_MASK & l1buf[i].val;
+		size_t bit = QCOW2_L1E_BIT_MASK & l1buf[i].val;
+		bit >>= 63;
+		log("l1 entry %u (%llx-%llx): offset=%zx, bit=%zx",
+				i, off0, off1,  off, bit);
 	}
 	sc->sc_l1 = l1buf;
 	l1buf = NULL;

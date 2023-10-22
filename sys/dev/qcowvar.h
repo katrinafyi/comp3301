@@ -59,9 +59,14 @@ struct qcow2_file_header {
 #define QCOW2_FEAT_CORRUPT		(1ULL << 1)
 
 struct qcow2_l1_entry {
-	uint64_t l2offset : 56;
-	uint8_t rsvd : 7;
-	bool refcountisone : 1;
+	// reserved lower bytes are within offset.
+	uint64_t val;
+#define QCOW2_L1E_OFFSET_MASK ((1ULL << 63) - 1)
+#define QCOW2_L1E_BIT_MASK (1ULL << 63)
+};
+
+struct qcow2_l2_entry {
+	uint64_t val;
 };
 
 /*
