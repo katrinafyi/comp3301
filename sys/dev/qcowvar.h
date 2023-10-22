@@ -37,7 +37,7 @@ struct qcow2_file_header {
 	uint32_t		crypt_method;
 #define QCOW2_CRYPT_METHOD_NONE		0
 #define QCOW2_CRYPT_METHOD_AES		1
-	uint32_t		l1_size;
+	uint32_t		l1_num_entries;
 	uint64_t		l1_table_offset;
 	uint64_t		refcount_table_offset;
 	uint32_t		refcount_table_clusters;
@@ -57,6 +57,12 @@ struct qcow2_file_header {
 
 #define QCOW2_FEAT_DIRTY		(1ULL << 0)
 #define QCOW2_FEAT_CORRUPT		(1ULL << 1)
+
+struct qcow2_l1_entry {
+	uint64_t l2offset : 56;
+	uint8_t rsvd : 7;
+	bool refcountisone : 1;
+};
 
 /*
  * ioctl interface

@@ -80,6 +80,7 @@ variable = macro(variable);
 #define QCOW_NLEN	(QCOW2_BACKING_FILE_SIZE + 1) /* add nul */
 
 CTASSERT(sizeof(struct qcow2_file_header) == 104);
+CTASSERT(sizeof(struct qcow2_l1_entry) == 8);
 
 struct qcow_softc {
 	struct device		 sc_dev;
@@ -99,6 +100,8 @@ struct qcow_softc {
 	int			 sc_rw;
 
 	struct qcow2_file_header sc_header;
+	struct qcow2_l1_entry *sc_l1;
+	size_t sc_l1_size;
 };
 
 RBT_HEAD(qcow_softcs, qcow_softc);
@@ -293,27 +296,36 @@ qcowclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 int
-qcow_cluster_read(struct qcow_softc *sc, enum uio_rw rw, size_t cluster, caddr_t data, size_t len, size_t *remaining)
+qcow_rdwr(struct qcow_softc *sc, enum uio_rw rw, size_t offset, size_t len, caddr_t dest, size_t *remaining)
+{
+	// XXX take cluster locks maybe? or require those are taken higher up for modifying of tables. 
+	return vn_rdwr(rw, sc->sc_vp, dest, len, offset, UIO_SYSSPACE,
+	    IO_NOCACHE | IO_SYNC | IO_NOLIMIT, sc->sc_ucred, remaining, curproc);
+}
+
+int
+qcow_cluster_rdwr(struct qcow_softc *sc, enum uio_rw rw, size_t cluster, caddr_t data, size_t len, size_t *remaining)
 {
 	size_t off = cluster * sc->sc_clustersize;
-	return vn_rdwr(rw, sc->sc_vp, data, len, off, UIO_SYSSPACE,
-	    IO_NOCACHE | IO_SYNC | IO_NOLIMIT, sc->sc_ucred, remaining, curproc);
+	return qcow_rdwr(sc, rw, off, len, data, remaining);
 }
 
 int
 qcow_header_read(struct qcow_softc *sc)
 {
 	int error = EIO;
-	caddr_t buf = NULL;
+	caddr_t headbuf = NULL;
+	struct qcow2_l1_entry *l1buf = NULL;
 	sc->sc_clustersize = sizeof(struct qcow2_file_header);
-	buf = malloc(sc->sc_clustersize, M_DEVBUF, M_WAITOK | M_ZERO);
-	ensure3(buf, ENOMEM, "malloc");
+	headbuf = malloc(sc->sc_clustersize, M_DEVBUF, M_WAITOK | M_ZERO);
+	ensure3(headbuf, ENOMEM, "malloc");
 
 	size_t remaining = sc->sc_clustersize;
-	error = qcow_cluster_read(sc, UIO_READ, 0, buf, sc->sc_clustersize, &remaining);
+	error = qcow_cluster_rdwr(sc, UIO_READ, 0, headbuf, sc->sc_clustersize, &remaining);
 	ensure(!error, "read");
+	ensure(remaining == 0, "partial read?");
 
-	error = kcopy(buf, &sc->sc_header, sizeof(sc->sc_header));
+	error = kcopy(headbuf, &sc->sc_header, sizeof(sc->sc_header));
 	ensure(!error, "kcopy");
 
 	struct qcow2_file_header *h = &sc->sc_header;
@@ -328,7 +340,7 @@ qcow_header_read(struct qcow_softc *sc)
 	modify(h->size, betoh64);
 	modify(h->crypt_method, betoh32);
 
-	modify(h->l1_size, betoh32);
+	modify(h->l1_num_entries, betoh32);
 	modify(h->l1_table_offset, betoh64);
 	modify(h->refcount_table_offset, betoh64);
 	modify(h->refcount_table_clusters, betoh32);
@@ -354,9 +366,29 @@ qcow_header_read(struct qcow_softc *sc)
 	error = ENODEV;
 	ensure(h->crypt_method == QCOW2_CRYPT_METHOD_NONE, "driver does not support encryption");
 
+	sc->sc_l1_size = h->l1_num_entries * sizeof(struct qcow2_l1_entry);
+	l1buf = malloc(sc->sc_l1_size, M_DEVBUF, M_WAITOK | M_ZERO);
+	ensure3(l1buf, EIO, "malloc for l1 table");
+	ensure(h->l1_table_offset % (1 << h->cluster_bits) == 0, "l1 must begin at cluster offset.");
+
+	remaining = sc->sc_l1_size;
+	error = qcow_rdwr(sc, UIO_READ, h->l1_table_offset, h->l1_num_entries, (void *)l1buf, &remaining);
+	ensure(!error, "qcow_rdwr for l1");
+	ensure(remaining == 0, "partial read?");
+
+	for (unsigned i = 0; i < h->l1_num_entries; i++) {
+		modify(*(uint64_t *)(l1buf + i), betoh64);
+		log("l1 entry %u: offset=%llu, rsvd=%d, bit=%d",
+				i, l1buf[i].l2offset, l1buf[i].rsvd, l1buf[i].refcountisone);
+	}
+	sc->sc_l1 = l1buf;
+	l1buf = NULL;
+
 	error = 0;
 fail:
-	if (buf) free(buf, M_DEVBUF, sc->sc_clustersize);
+	if (error && sc->sc_l1) free(sc->sc_l1, M_DEVBUF, sc->sc_l1_size);
+	if (l1buf) free(l1buf, M_DEVBUF, sc->sc_l1_size);
+	if (headbuf) free(headbuf, M_DEVBUF, sc->sc_clustersize);
 	return error;
 }
 
