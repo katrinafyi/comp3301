@@ -67,6 +67,10 @@ struct qcow2_l1_entry {
 
 struct qcow2_l2_entry {
 	uint64_t val;
+#define QCOW2_L2E_DESC_ALLZERO (1ULL << 0)
+#define QCOW2_L2E_DESC_OFFSET (((1ULL << 56) - 1) & ~1)
+#define QCOW2_L2E_ISCOMPRESSED (1ULL << 62)
+#define QCOW2_L2E_ISSINGULAR (1ULL << 63)
 };
 
 /*
