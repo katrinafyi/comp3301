@@ -408,6 +408,7 @@ qcowstrategy(struct buf *bp)
 	struct qcow2_l1_entry *l1buf = NULL;
 	struct qcow2_l2_entry *l2buf = NULL;
 	caddr_t clusterbuf = NULL;
+	// bool unallocated = true;
 
 	ensure(bp->b_resid <= bp->b_bcount,
 			"INVALID: size of operation is smaller than buffer?!");
@@ -422,11 +423,20 @@ qcowstrategy(struct buf *bp)
 	int64_t i = -1;
 	caddr_t datap = bp->b_data;
 
+	off_t offset;
+	struct partition *p;
+	p = &sc->sc_dk.dk_label->d_partitions[DISKPART(bp->b_dev)];
+	offset = DL_GETPOFFSET(p) * sc->sc_dk.dk_label->d_secsize +
+	    (u_int64_t)bp->b_blkno * DEV_BSIZE;
+	// offset is a VIRTUAL address!
+	log("targeting virtual offset: %llx", offset);
+
 copycluster:
 	i++;
 	ensure(i < 1000, "surely not");
 	log("subop %lli: resid=%zu, bcount=%zu, lblkno=%lld, part=%d",
 			i, bp->b_resid, bp->b_bcount, bp->b_lblkno, DISKPART(bp->b_dev));
+	if (bp->b_resid == 0) goto done;
 
 	ensure(bp->b_flags & B_READ, "only read is supported right now");
 
@@ -436,6 +446,7 @@ copycluster:
 	clusterbuf = malloc(sc->sc_clustersize, M_DEVBUF, M_WAITOK | M_ZERO);
 	ensure3(l1buf, EIO, "malloc for l1 table");
 	ensure3(l2buf, EIO, "malloc for l2 table");
+	ensure3(clusterbuf, EIO, "malloc for cluster buffer");
 	ensure(h->l1_table_offset % sc->sc_clustersize == 0, "l1 must begin at cluster offset.");
 
 	size_t remaining = sc->sc_l1_size;
@@ -472,21 +483,12 @@ copycluster:
 				i, off1, off1,  off, bit);
 	}
 
-
-	off_t offset;
-	struct partition *p;
-	p = &sc->sc_dk.dk_label->d_partitions[DISKPART(bp->b_dev)];
-	offset = DL_GETPOFFSET(p) * sc->sc_dk.dk_label->d_secsize +
-	    (u_int64_t)bp->b_blkno * DEV_BSIZE;
-	// offset is a VIRTUAL address!
-
 	uint64_t cluster_size = 1 << h->cluster_bits;
 	uint64_t l2_entries = cluster_size / sizeof(uint64_t);
 	// index within l2/l1 tables
 	uint64_t l2_index = (offset / cluster_size) % l2_entries;
 	uint64_t l1_index = (offset / cluster_size) / l2_entries;
 
-	log("targeting virtual offset: %llx", offset);
 	log("... l1_index=%llx, l1_offset=%llx", l1_index,
 			h->l1_table_offset + sizeof(struct qcow2_l1_entry) * l1_index);
 
@@ -509,7 +511,10 @@ copycluster:
 
 	uint64_t cluster_offset = QCOW2_L2E_DESC_OFFSET & l2_entry.val;
 	log("... cluster_offset=%llx", cluster_offset);
-	if (0 == cluster_offset && (QCOW2_L2E_ISSINGULAR & l2_entry.val)) {
+	if (0 == cluster_offset) {
+		ensure(~(QCOW2_L2E_ISSINGULAR & l2_entry.val), 
+				"singular bit may only be set with zero offset when external file"
+				" is used, which is not.");
 		ensure(0 != cluster_offset, "SHORT CIRCUIT: l2 table is unallocated");
 	}
 	if (QCOW2_L2E_DESC_ALLZERO & l2_entry.val) {
@@ -526,6 +531,7 @@ copycluster:
 	ensure(!error, "kcopy = %d", error);
 	bp->b_resid -= copysize;
 	datap += copysize;
+	offset += copysize;
 
 	log("remaining bytes = %zu", bp->b_resid);
 	if (bp->b_resid > 0) {
@@ -538,8 +544,8 @@ copycluster:
 	// error = VOP_GETATTR(bp->b_vp, &stat, sc->sc_ucred, curproc);
 	ensure(!error, "vn_stat returned %d", error);
 
-	offset = stat.st_size;
-	log("size=%lld", offset);
+	// offset = stat.st_size;
+	// log("size=%lld", offset);
 
 	/* XXX do actual qcow IO here */
 	// bp->b_error = vn_rdwr((bp->b_flags & B_READ) ? UIO_READ : UIO_WRITE,
@@ -858,7 +864,7 @@ qcow_getdisklabel(dev_t dev, struct qcow_softc *sc, struct disklabel *lp,
 	lp->d_secsize = sc->sc_secsize;
 
 	/* # of data sectors per track */
-	lp->d_nsectors = 1; // XXX
+	lp->d_nsectors = 100; // XXX
 
 	/* # of tracks per cylinder */
 	lp->d_ntracks = 1;
@@ -870,7 +876,7 @@ qcow_getdisklabel(dev_t dev, struct qcow_softc *sc, struct disklabel *lp,
 	lp->d_ncylinders = sc->sc_seccount / lp->d_secpercyl;
 
 	/* # of data sectors (low part) */
-	/* lp->d_secperunit = ??; */
+	lp->d_secperunit = sc->sc_seccount;
 
 	lp->d_type = DTYPE_VND;
 	strncpy(lp->d_typename, "QCOW2 File", sizeof(lp->d_typename));
