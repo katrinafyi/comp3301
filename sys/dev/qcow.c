@@ -508,6 +508,7 @@ copycluster:
 	ensure(!(QCOW2_L2E_ISCOMPRESSED & l2_entry.val), "unsup: l2 entry is compressed");
 
 	uint64_t cluster_offset = QCOW2_L2E_DESC_OFFSET & l2_entry.val;
+	log("... cluster_offset=%llx", cluster_offset);
 	if (0 == cluster_offset && (QCOW2_L2E_ISSINGULAR & l2_entry.val)) {
 		ensure(0 != cluster_offset, "SHORT CIRCUIT: l2 table is unallocated");
 	}
@@ -655,7 +656,13 @@ sc = qcow_create(dev);
 	sc->sc_clustersize = 1 << sc->sc_header.cluster_bits;
 
 	sc->sc_secsize = 1 << qc->qc_secbits;
-	sc->sc_seccount = 1; // XXX TODO: derive seccount from header.
+	sc->sc_seccount = sc->sc_header.size / sc->sc_secsize; // XXX TODO: derive seccount from header.
+	if (!(sc->sc_seccount >= 1)) {
+		log("error: requested sector size is larger than virtual disk size?");
+		log("... sector size = %zu, virtual size = %llu", sc->sc_secsize, sc->sc_header.size);
+		error = ENODEV;
+		goto freefname;
+	}
 
 	error = rw_enter(&qd.qd_lock, RW_WRITE|RW_INTR);
 	if (error != 0)
@@ -851,7 +858,7 @@ qcow_getdisklabel(dev_t dev, struct qcow_softc *sc, struct disklabel *lp,
 	lp->d_secsize = sc->sc_secsize;
 
 	/* # of data sectors per track */
-	lp->d_nsectors = 100; // XXX
+	lp->d_nsectors = 1; // XXX
 
 	/* # of tracks per cylinder */
 	lp->d_ntracks = 1;
