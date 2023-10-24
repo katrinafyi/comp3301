@@ -42,7 +42,7 @@
  * the special file is controlled by the permissions on the special
  * file, the protection of the mapped file is ignored (effectively,
  * by using root credentials in all transactions).
- *
+ 	 *
  */
 
 #include <sys/param.h>
@@ -327,6 +327,8 @@ vndstrategy(struct buf *bp)
 	p = &sc->sc_dk.dk_label->d_partitions[DISKPART(bp->b_dev)];
 	off = DL_GETPOFFSET(p) * sc->sc_dk.dk_label->d_secsize +
 	    (u_int64_t)bp->b_blkno * DEV_BSIZE;
+	printf("vnd: resid=%zu, bcount=%zu, lblkno=%lld, part=%d, offset=%lld\n",
+			bp->b_resid, bp->b_bcount, bp->b_lblkno, DISKPART(bp->b_dev), off);
 
 	if (sc->sc_keyctx && !(bp->b_flags & B_READ))
 		vndencryptbuf(sc, bp, 1);
