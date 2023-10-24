@@ -560,6 +560,15 @@ fail:
 }
 
 void
+debug_buf(char* buf, size_t len)
+{
+	for (size_t i = 0; i < len; i++) {
+		printf("%02X ", buf[i]);
+	}
+	printf("\n");
+}
+
+void
 qcowstrategy(struct buf *bp)
 {
 	struct qcow_softc *sc = NULL;
@@ -582,7 +591,6 @@ qcowstrategy(struct buf *bp)
 
   clusterbuf = malloc(sc->sc_clustersize, M_DEVBUF, M_WAITOK | M_ZERO);
 
-	memset(bp->b_data, 0, bp->b_bcount);
 
 	off_t offset;
 	struct partition *p;
@@ -591,13 +599,14 @@ qcowstrategy(struct buf *bp)
 	    (u_int64_t)bp->b_blkno * DEV_BSIZE;
 	// offset is a VIRTUAL address!
 	log("targeting virtual offset: 0x%llx", offset);
-	if (bp->b_resid == 0)
-		bp->b_resid = bp->b_bcount;
 
 	if (bounds_check_with_label(bp, sc->sc_dk.dk_label) == -1) {
 		bp->b_resid = bp->b_bcount;
+		log("bounds check failed");
 		goto done;
 	}
+	if (bp->b_resid == 0)
+		bp->b_resid = bp->b_bcount;
 
 	if (offset + bp->b_resid > sc->sc_header.size) {
 		log("WARN: requested size %zu exceeds vsize", bp->b_resid);
@@ -612,10 +621,17 @@ qcowstrategy(struct buf *bp)
 		log("... adjusted size to %zu (shortened by %zu)",
 				bp->b_resid, shortening);
 	}
+	if (bp->b_resid == 0) {
+		log("resid 0");
+		goto done;
+	}
 
 	enum uio_rw rw = (bp->b_flags & B_READ) ? UIO_READ : UIO_WRITE;
 	if (bp->b_resid != 0) {
 		// ensure(rw == UIO_READ, "only read rn :(");
+	}
+	if (rw == UIO_READ) {
+		memset(bp->b_data, 0, bp->b_bcount);
 	}
 
 	size_t seek = offset % sc->sc_clustersize;
@@ -644,6 +660,7 @@ qcowstrategy(struct buf *bp)
 again:
 	if (i >= numclusters) {
 		log("done after %zu clusters", numclusters);
+		ensure(bp->b_resid == 0, "x");
 		goto done;
 	}
 
@@ -669,8 +686,13 @@ again:
 		error = kcopy(clusterbuf + seek, datap, copysize);
 		ensure(!error, "kcopy = %d", error);
 	} else {
+		// debug_buf(datap, 80);
+		// debug_buf(clusterbuf + seek, 80);
+
 		error = kcopy(datap, clusterbuf + seek, copysize);
 		ensure(!error, "kcopy = %d", error);
+		// debug_buf(clusterbuf + seek, 80);
+		// debug_buf(clusterbuf, 80);
 
 		size_t remaining = sc->sc_clustersize;
 		error = qcow_rdwr(sc, UIO_WRITE, clusteroffsets[i], remaining, (void *)clusterbuf, &remaining);
