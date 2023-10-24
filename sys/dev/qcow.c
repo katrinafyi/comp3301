@@ -828,7 +828,13 @@ qcow_attach(dev_t dev, int flag, const struct qcow_attach *qc, struct proc *p)
 
 	sc->sc_clustersize = 1 << sc->sc_header.cluster_bits;
 
-	sc->sc_secsize = 1 << qc->qc_secbits;
+	size_t secbits = (qc->qc_secbits == 0 ? 9 : qc->qc_secbits);
+	if (!(QCOW_SECBITS_MIN <= secbits && secbits <= QCOW_SECBITS_MAX)) {
+		log("secbits %zu out of range", secbits);
+		error = EINVAL;
+		goto freefname;
+	}
+	sc->sc_secsize = 1 << secbits;
 	sc->sc_seccount = sc->sc_header.size / sc->sc_secsize;
 	log("... sector size = %zu, sector count = %zu", sc->sc_secsize, sc->sc_seccount);
 	if (!(sc->sc_seccount >= 1)) {
