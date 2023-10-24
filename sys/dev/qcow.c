@@ -412,7 +412,16 @@ qcow_append_cluster(struct qcow_softc *sc, uint64_t *offsetout)
 	ensure(!error, "vn_stat returned %d", error);
 
 	// log("appending to file of size %lld", stat.st_size);
-	ensure(stat.st_size % sc->sc_clustersize == 0, "file size is not cluster multiple!");
+	if (stat.st_size % sc->sc_clustersize != 0) {
+		log("file size is not cluster multiple! size = %lld, clustersize = %zu",
+			stat.st_size, sc->sc_clustersize);
+		size_t remaining = sc->sc_clustersize - (stat.st_size % sc->sc_clustersize);
+		error = qcow_rdwr(sc, UIO_WRITE, stat.st_size, remaining, buf, &remaining);
+		ensure(!error, "rdwr 1");
+	}
+	
+	error = vn_stat(sc->sc_vp, &stat, curproc);
+	ensure(!error, "vn_stat returned %d", error);
 
 	size_t remaining = sc->sc_clustersize;
 	error = qcow_rdwr(sc, UIO_WRITE, stat.st_size, remaining, buf, &remaining);
