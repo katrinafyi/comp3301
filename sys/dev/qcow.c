@@ -336,7 +336,7 @@ qcow_header_read(struct qcow_softc *sc)
 			"backing file unsupported");
 
 	ensure(!headbuf->incompatible_features,
-			"incompatible features used: %llx", betoh64(headbuf->incompatible_features));
+			"incompatible features used: 0x%llx", betoh64(headbuf->incompatible_features));
 
 	log("detecting autoclear features = %llu", headbuf->autoclear_features);
 	if ((sc->sc_rw & FWRITE) && headbuf->autoclear_features) {
@@ -399,6 +399,33 @@ fail:
 }
 
 int
+qcow_append_cluster(struct qcow_softc *sc, uint64_t *offsetout)
+{
+	int error = EIO;
+	caddr_t buf = NULL;
+	buf = malloc(sc->sc_clustersize, M_DEVBUF, M_WAITOK | M_ZERO);
+	ensure(buf, "malloc");
+
+
+	struct stat stat;
+	error = vn_stat(sc->sc_vp, &stat, curproc);
+	ensure(!error, "vn_stat returned %d", error);
+
+	// log("appending to file of size %lld", stat.st_size);
+	ensure(stat.st_size % sc->sc_clustersize == 0, "file size is not cluster multiple!");
+
+	size_t remaining = sc->sc_clustersize;
+	error = qcow_rdwr(sc, UIO_WRITE, stat.st_size, remaining, buf, &remaining);
+	ensure(!error, "rdwr");
+
+	*offsetout = stat.st_size;
+	error = 0;
+fail:
+	if (buf) free(buf, M_DEVBUF, sc->sc_clustersize);
+	return error;
+}
+
+int
 qcow_prepare_clusters(
 		struct qcow_softc *sc, enum uio_rw rw, uint64_t offset, 
 		size_t numclusters, uint64_t *clustersout)
@@ -436,13 +463,12 @@ again:
 	uint64_t l2_index = (offset / cluster_size) % l2_entries;
 	uint64_t l1_index = (offset / cluster_size) / l2_entries;
 
-	log("... l1_index=%llx, l1_offset=%llx", l1_index,
+	log("... l1_index=0x%llx, l1_offset=0x%llx", l1_index,
 			h->l1_table_offset + sizeof(struct qcow2_l1_entry) * l1_index);
 
-	struct qcow2_l1_entry l1_entry = l1buf[l1_index];
-	modify(*(uint64_t *)&l1_entry, betoh64);
+	struct qcow2_l1_entry l1_entry = { betoh64(l1buf[l1_index].val) };
 	uint64_t l2_table_offset = QCOW2_L1E_OFFSET_MASK & l1_entry.val;
-	log("... l2_table_offset=%llx. l2_index=%llx, l2_offset=%llx",
+	log("... l2_table_offset=0x%llx. l2_index=0x%llx, l2_offset=0x%llx",
 			l2_table_offset, l2_index,
 			l2_table_offset + sizeof(struct qcow2_l2_entry) * l1_index);
 	remaining = sc->sc_clustersize;
@@ -451,18 +477,21 @@ again:
 		log("SHORT CIRCUIT: l2 table is unallocated");
 		goto unallocated;
 	}
+	if (rw == UIO_WRITE) {
+		ensure3(l1_entry.val & QCOW2_L1E_BIT_MASK, ENODEV, "singular bit not set. write operation would require COW");
+	}
+
 	remaining = sc->sc_clustersize;
 	error = qcow_rdwr(sc, UIO_READ, l2_table_offset, remaining, (void *)l2buf, &remaining);
 	ensure(!error, "l2 table read");
 	ensure(remaining == 0, "short 1");
 
-	struct qcow2_l2_entry l2_entry = l2buf[l2_index];
-	modify(*(uint64_t *)&l2_entry, betoh64);
+	struct qcow2_l2_entry l2_entry = { betoh64(l2buf[l2_index].val) };
 	error = ENOTSUP;
 	ensure(!(QCOW2_L2E_ISCOMPRESSED & l2_entry.val), "unsup: l2 entry is compressed");
 
 	uint64_t cluster_offset = QCOW2_L2E_DESC_OFFSET & l2_entry.val;
-	log("... cluster_offset[%u]=%llx", i, cluster_offset);
+	log("... cluster_offset[%u]=0x%llx", i, cluster_offset);
 	if (0 == cluster_offset) {
 		ensure(~(QCOW2_L2E_ISSINGULAR & l2_entry.val), 
 				"singular bit may only be set with zero offset when external file"
@@ -490,11 +519,34 @@ unallocated:
 		goto again;
 	}
 	if (0 == l2_table_offset) {
-		// XXX make l2 table entry inside l1 table
+		uint64_t new_l2;
+		error = qcow_append_cluster(sc, &new_l2);
+		ensure(!error, "append");
+		ensure(new_l2 % sc->sc_clustersize == 0, "INVALID: append gave us a non-aligned offset");
+
+		log("allocating l2 table at 0x%llx", new_l2);
+    l1buf[l1_index].val = htobe64(new_l2 | QCOW2_L1E_BIT_MASK);
+
+		remaining = sc->sc_l1_size;
+		error = qcow_rdwr(sc, UIO_WRITE, h->l1_table_offset, remaining, (void *)l1buf, &remaining);
+		ensure(!error, "qcow_rdwr for l1 append");
+		ensure(remaining == 0, "partial write?");
+
 		goto again;
 	} else {
-		// XXX make cluster and add into l2 table
-		// be sure to unset ALLZERO flag.
+		uint64_t new_cluster;
+		error = qcow_append_cluster(sc, &new_cluster);
+		ensure(!error, "append");
+		ensure(new_cluster % sc->sc_clustersize == 0, "INVALID: append gave us a non-aligned offset");
+
+		log("allocating data cluster at 0x%llx", new_cluster);
+    l2buf[l2_index].val = htobe64(new_cluster | QCOW2_L2E_ISSINGULAR);
+
+		remaining = sc->sc_clustersize;
+		error = qcow_rdwr(sc, UIO_WRITE, l2_table_offset, remaining, (void *)l2buf, &remaining);
+		ensure(!error, "qcow_rdwr for l2 append");
+		ensure(remaining == 0, "partial write?");
+
 		goto again;
 	}
 	error = EIO;
@@ -538,7 +590,7 @@ qcowstrategy(struct buf *bp)
 	offset = DL_GETPOFFSET(p) * sc->sc_dk.dk_label->d_secsize +
 	    (u_int64_t)bp->b_blkno * DEV_BSIZE;
 	// offset is a VIRTUAL address!
-	log("targeting virtual offset: %llx", offset);
+	log("targeting virtual offset: 0x%llx", offset);
 	if (bp->b_resid == 0)
 		bp->b_resid = bp->b_bcount;
 
@@ -563,7 +615,7 @@ qcowstrategy(struct buf *bp)
 
 	enum uio_rw rw = (bp->b_flags & B_READ) ? UIO_READ : UIO_WRITE;
 	if (bp->b_resid != 0) {
-		ensure(rw == UIO_READ, "only read rn :(");
+		// ensure(rw == UIO_READ, "only read rn :(");
 	}
 
 	size_t seek = offset % sc->sc_clustersize;
@@ -591,7 +643,7 @@ qcowstrategy(struct buf *bp)
 
 again:
 	if (i >= numclusters) {
-		log("done after %zu copies", numclusters);
+		log("done after %zu clusters", numclusters);
 		goto done;
 	}
 
@@ -613,18 +665,22 @@ again:
 
 	size_t copysize = sc->sc_clustersize - seek;
 	copysize = MIN(copysize, bp->b_resid);
-	error = kcopy(clusterbuf + seek, datap, copysize);
-	ensure(!error, "kcopy = %d", error);
+	if (rw == UIO_READ) {
+		error = kcopy(clusterbuf + seek, datap, copysize);
+		ensure(!error, "kcopy = %d", error);
+	} else {
+		error = kcopy(datap, clusterbuf + seek, copysize);
+		ensure(!error, "kcopy = %d", error);
+
+		size_t remaining = sc->sc_clustersize;
+		error = qcow_rdwr(sc, UIO_WRITE, clusteroffsets[i], remaining, (void *)clusterbuf, &remaining);
+		ensure(!error, "cluster write-bacj");
+		ensure(remaining == 0, "short 3");
+	}
 	bp->b_resid -= copysize;
 	datap += copysize;
-	i++;
 	seek = 0;
-
-	// struct stat stat;
-	// log("b_proc=%p, curproc=%p", bp->b_proc, curproc);
-	// error = vn_stat(sc->sc_vp, &stat, curproc);
-	// // error = VOP_GETATTR(bp->b_vp, &stat, sc->sc_ucred, curproc);
-	// ensure(!error, "vn_stat returned %d", error);
+	i++;
 
 	goto again;
 fail:
