@@ -566,11 +566,19 @@ qcowstrategy(struct buf *bp)
 		ensure(rw == UIO_READ, "only read rn :(");
 	}
 
+	size_t seek = offset % sc->sc_clustersize;
+	if (seek) {
+		log("NOTE: voffset not cluster-aligned. seek=%zu", seek);
+	}
+	offset -= seek;
+	bp->b_resid += seek;
+
 	size_t numclusters = bp->b_resid / sc->sc_clustersize;
 	if (bp->b_resid % sc->sc_clustersize != 0) {
 		numclusters++;
 	}
 	log("numclusters=%zu", numclusters);
+	bp->b_resid -= seek;
 
 	if (numclusters) {
 		clusteroffsets = malloc(sizeof(uint64_t) * numclusters, M_DEVBUF, M_WAITOK | M_ZERO);
@@ -580,12 +588,12 @@ qcowstrategy(struct buf *bp)
 	int64_t i = 0;
 	caddr_t datap = bp->b_data;
 
+
 again:
 	if (i >= numclusters) {
 		log("done after %zu copies", numclusters);
 		goto done;
 	}
-
 
 	error = qcow_prepare_clusters(sc, rw, offset, numclusters, clusteroffsets);
 	ensure(!error, "prepare_clusters = %d", error);
@@ -603,12 +611,14 @@ again:
     memset(clusterbuf, 0, sc->sc_clustersize);
 	}
 
-	size_t copysize = MIN(bp->b_resid, sc->sc_clustersize);
-	error = kcopy(clusterbuf, datap, copysize);
+	size_t copysize = sc->sc_clustersize - seek;
+	copysize = MIN(copysize, bp->b_resid);
+	error = kcopy(clusterbuf + seek, datap, copysize);
 	ensure(!error, "kcopy = %d", error);
 	bp->b_resid -= copysize;
 	datap += copysize;
 	i++;
+	seek = 0;
 
 	// struct stat stat;
 	// log("b_proc=%p, curproc=%p", bp->b_proc, curproc);
@@ -622,6 +632,12 @@ fail:
 	bp->b_flags |= B_ERROR;
 	bp->b_resid = bp->b_bcount;
 done:
+	log("clusteroffsets=");
+	if (clusteroffsets) {
+		for (unsigned i = 0; i < numclusters; i++)
+			printf("[%u] = 0x%llx, ", i, clusteroffsets[i]);
+	}
+
 	if (!bp->b_error)
 		bp->b_resid = shortening;
 	if (clusteroffsets) free(clusteroffsets, M_DEVBUF, sizeof(uint64_t) * numclusters);
@@ -697,7 +713,7 @@ qcow_attach(dev_t dev, int flag, const struct qcow_attach *qc, struct proc *p)
 		goto close;
 	}
 
-sc = qcow_create(dev);
+	sc = qcow_create(dev);
 	if (sc == NULL) {
 		error = ENOMEM;
 		goto close;
