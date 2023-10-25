@@ -314,8 +314,13 @@ qcow_rdwr(struct qcow_softc *sc, enum uio_rw rw,
 	ensure(!error, "vn_stat returned %d", error);
 
 	error = EIO;
-	ensure(offset + len <= stat.st_size,
-	    "INVALID: rdwr exceeds file size!");
+	if (rw == UIO_READ) {
+		ensure(offset + len <= stat.st_size,
+	    	"INVALID: rdwr exceeds file size!");
+	} else {
+		ensure(offset <= stat.st_size,
+	    	"INVALID: rdwr exceeds file size!");
+	}
 
 	return vn_rdwr(rw, sc->sc_vp, dest, len, offset, UIO_SYSSPACE,
 	    IO_NOCACHE | IO_SYNC | IO_NOLIMIT,
