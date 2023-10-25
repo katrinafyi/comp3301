@@ -302,15 +302,26 @@ int
 qcow_rdwr(struct qcow_softc *sc, enum uio_rw rw,
     size_t offset, size_t len, caddr_t dest, size_t *remaining)
 {
+	int error = EIO;
 	if (!(sc->sc_rw & FWRITE)) {
+		error = EROFS;
 		ensure(rw != UIO_WRITE,
 		    "INVALID: attempt to write to read-only file");
 	}
+
+	struct stat stat;
+	error = vn_stat(sc->sc_vp, &stat, curproc);
+	ensure(!error, "vn_stat returned %d", error);
+
+	error = EIO;
+	ensure(offset + len <= stat.st_size,
+	    "INVALID: rdwr exceeds file size!");
+
 	return vn_rdwr(rw, sc->sc_vp, dest, len, offset, UIO_SYSSPACE,
 	    IO_NOCACHE | IO_SYNC | IO_NOLIMIT,
 	    sc->sc_ucred, remaining, curproc);
 fail:
-	return EROFS;
+	return error;
 }
 
 int
@@ -514,6 +525,7 @@ again:
 	log("... l1_index=0x%llx, l1_offset=0x%llx", l1_index,
 	    h->l1_table_offset + sizeof(struct qcow2_l1_entry) * l1_index);
 
+	ensure(l1_index < h->l1_num_entries, "INVALID: l1_index out of range");
 	struct qcow2_l1_entry l1_entry = { betoh64(l1buf[l1_index].val) };
 	uint64_t l2_table_offset = QCOW2_L1E_OFFSET_MASK & l1_entry.val;
 	log("... l2_table_offset=0x%llx. l2_index=0x%llx, l2_offset=0x%llx",
@@ -536,6 +548,8 @@ again:
 	ensure(!error, "l2 table read");
 	ensure(remaining == 0, "short 1");
 
+	ensure(l2_index < entries_per_l2_table,
+	    "INVALID: l2_index out of range");
 	struct qcow2_l2_entry l2_entry = { betoh64(l2buf[l2_index].val) };
 	error = ENOTSUP;
 	ensure(!(QCOW2_L2E_ISCOMPRESSED & l2_entry.val),
@@ -607,9 +621,13 @@ unallocated:
 	}
 	error = EIO;
 	ensure(false, "INVALID unallocated short circuit");
+fail:
+	error = error ? error : EIO;
+	goto end;
 done:
 	error = 0;
-fail:
+	goto end;
+end:
 	if (l2buf) free(l2buf, M_DEVBUF, sc->sc_clustersize);
 	if (l1buf) free(l1buf, M_DEVBUF, sc->sc_l1_size);
 	return error;
