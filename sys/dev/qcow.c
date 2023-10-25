@@ -87,6 +87,7 @@ struct qcow_softc {
 	struct device		 sc_dev;
 	RBT_ENTRY(qcow_softc)	 sc_entry;
 	struct refcnt		 sc_refs;
+	struct rwlock		 sc_lock;
 
 	struct disk		 sc_dk;
 	size_t			 sc_secsize;
@@ -133,7 +134,7 @@ static struct qcow_driver qd = {
 };
 
 static int	 qcow_getdisklabel(dev_t, struct qcow_softc *,
-		     struct disklabel *, int);
+		struct disklabel *, int);
 
 void
 qcowattach(int num)
@@ -284,7 +285,8 @@ qcowclose(dev_t dev, int flags, int fmt, struct proc *p)
 
 	sc = qcow_enter(dev);
 	if (sc == NULL) {
-		KASSERT(part == RAW_PART && fmt == S_IFCHR);
+		// XXX removed by lachie's direction.
+		// KASSERT(part == RAW_PART && fmt == S_IFCHR);
 		return (0);
 	}
 
@@ -297,20 +299,23 @@ qcowclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 int
-qcow_rdwr(struct qcow_softc *sc, enum uio_rw rw, size_t offset, size_t len, caddr_t dest, size_t *remaining)
+qcow_rdwr(struct qcow_softc *sc, enum uio_rw rw,
+    size_t offset, size_t len, caddr_t dest, size_t *remaining)
 {
 	if (!(sc->sc_rw & FWRITE)) {
-		ensure(rw != UIO_WRITE, "INVALID: attempt to write to read-only file");
+		ensure(rw != UIO_WRITE,
+		    "INVALID: attempt to write to read-only file");
 	}
-	// XXX take cluster locks maybe? or require those are taken higher up for modifying of tables. 
 	return vn_rdwr(rw, sc->sc_vp, dest, len, offset, UIO_SYSSPACE,
-	    IO_NOCACHE | IO_SYNC | IO_NOLIMIT, sc->sc_ucred, remaining, curproc);
+	    IO_NOCACHE | IO_SYNC | IO_NOLIMIT,
+	    sc->sc_ucred, remaining, curproc);
 fail:
 	return EROFS;
 }
 
 int
-qcow_cluster_rdwr(struct qcow_softc *sc, enum uio_rw rw, size_t cluster, caddr_t data, size_t len, size_t *remaining)
+qcow_cluster_rdwr(struct qcow_softc *sc, enum uio_rw rw,
+    size_t cluster, caddr_t data, size_t len, size_t *remaining)
 {
 	size_t off = cluster * sc->sc_clustersize;
 	return qcow_rdwr(sc, rw, off, len, data, remaining);
@@ -327,23 +332,26 @@ qcow_header_read(struct qcow_softc *sc)
 	ensure3(headbuf, ENOMEM, "malloc");
 
 	size_t remaining = sizeof(*headbuf);
-	error = qcow_rdwr(sc, UIO_READ, 0, remaining, (void *)headbuf, &remaining);
+	error =
+	    qcow_rdwr(sc, UIO_READ, 0, remaining, (void *)headbuf, &remaining);
 	ensure(!error, "read");
 	ensure(remaining == 0, "partial read?");
 
 	error = ENOTSUP;
 	ensure(0 == headbuf->backing_file_offset,
-			"backing file unsupported");
+	    "backing file unsupported");
 
 	ensure(!headbuf->incompatible_features,
-			"incompatible features used: 0x%llx", betoh64(headbuf->incompatible_features));
+	    "incompatible features used: 0x%llx",
+	    betoh64(headbuf->incompatible_features));
 
 	log("detecting autoclear features = %llu", headbuf->autoclear_features);
 	if ((sc->sc_rw & FWRITE) && headbuf->autoclear_features) {
 		log("... clearing");
 		headbuf->autoclear_features = 0;
 		remaining = sizeof(*headbuf);
-		error = qcow_rdwr(sc, UIO_WRITE, 0, remaining, (void *)headbuf, &remaining);
+		error = qcow_rdwr(sc, UIO_WRITE, 0,
+		    remaining, (void *)headbuf, &remaining);
 		ensure(!error, "autoclear write-back");
 	}
 
@@ -381,12 +389,17 @@ qcow_header_read(struct qcow_softc *sc)
 	log("version %d, size %llu", h->version, h->size);
 	ensure(h->version == 2 || h->version == 3, "version mismatch");
 	log("actual header len %d", h->header_length);
-	ensure(h->header_length >= sizeof(struct qcow2_file_header), "header size violation, headersize=%d", h->header_length);
+	ensure(h->header_length >= sizeof(struct qcow2_file_header),
+	    "header size violation, headersize=%d", h->header_length);
 	log("cluster bits %d, size %d", h->cluster_bits, 1 << h->cluster_bits);
-	ensure(QCOW2_CLUSTER_BITS_MIN <= h->cluster_bits && h->cluster_bits <= QCOW2_CLUSTER_BITS_MAX, "cluster bits = %u", h->cluster_bits);
+	ensure(
+	    QCOW2_CLUSTER_BITS_MIN <= h->cluster_bits &&
+	    h->cluster_bits <= QCOW2_CLUSTER_BITS_MAX,
+	    "cluster bits = %u", h->cluster_bits);
 
 	error = ENODEV;
-	ensure(h->crypt_method == QCOW2_CRYPT_METHOD_NONE, "driver does not support encryption");
+	ensure(h->crypt_method == QCOW2_CRYPT_METHOD_NONE,
+	    "driver does not support encryption");
 
 	sc->sc_l1_size = h->l1_num_entries * sizeof(struct qcow2_l1_entry);
 
@@ -398,6 +411,10 @@ fail:
 	return error;
 }
 
+/*
+ * Appends a cluster of zeros to the end of the file, returning
+ * the offset of the cluster in *offsetout.
+ */
 int
 qcow_append_cluster(struct qcow_softc *sc, uint64_t *offsetout)
 {
@@ -413,18 +430,22 @@ qcow_append_cluster(struct qcow_softc *sc, uint64_t *offsetout)
 
 	// log("appending to file of size %lld", stat.st_size);
 	if (stat.st_size % sc->sc_clustersize != 0) {
-		log("file size is not cluster multiple! size = %lld, clustersize = %zu",
-			stat.st_size, sc->sc_clustersize);
-		size_t remaining = sc->sc_clustersize - (stat.st_size % sc->sc_clustersize);
-		error = qcow_rdwr(sc, UIO_WRITE, stat.st_size, remaining, buf, &remaining);
+		log("file size is not cluster multiple!"
+		    " size = %lld, clustersize = %zu",
+		    stat.st_size, sc->sc_clustersize);
+		size_t remaining =
+		    sc->sc_clustersize - (stat.st_size % sc->sc_clustersize);
+		error = qcow_rdwr(
+		    sc, UIO_WRITE, stat.st_size, remaining, buf, &remaining);
 		ensure(!error, "rdwr 1");
 	}
-	
+
 	error = vn_stat(sc->sc_vp, &stat, curproc);
 	ensure(!error, "vn_stat returned %d", error);
 
 	size_t remaining = sc->sc_clustersize;
-	error = qcow_rdwr(sc, UIO_WRITE, stat.st_size, remaining, buf, &remaining);
+	error = qcow_rdwr(
+	    sc, UIO_WRITE, stat.st_size, remaining, buf, &remaining);
 	ensure(!error, "rdwr");
 
 	*offsetout = stat.st_size;
@@ -434,37 +455,55 @@ fail:
 	return error;
 }
 
+/*
+ * Computes the list of affected clusters for an operation beginning
+ * at offset and continuing for numclusters clusters. The result is stored
+ * within the given clustersout array.
+ *
+ * If rw is UIO_READ, 0x0 may be stored where a cluster reads as zeros.
+ * If rw is UIO_WRITE, unallocated clusters will be allocated and their
+ * new offset will be stored in clustersout.
+ *
+ * offset is required to be cluster-aligned.
+ */
 int
 qcow_prepare_clusters(
-		struct qcow_softc *sc, enum uio_rw rw, uint64_t offset, 
+		struct qcow_softc *sc, enum uio_rw rw, uint64_t offset,
 		size_t numclusters, uint64_t *clustersout)
 {
 	int error = EIO;
 	struct qcow2_file_header *h = &sc->sc_header;
-	struct qcow2_l1_entry *l1buf = malloc(sc->sc_l1_size, M_DEVBUF, M_WAITOK | M_ZERO);
-	struct qcow2_l2_entry *l2buf = malloc(sc->sc_clustersize, M_DEVBUF, M_WAITOK | M_ZERO);
+	struct qcow2_l1_entry *l1buf =
+	    malloc(sc->sc_l1_size, M_DEVBUF, M_WAITOK | M_ZERO);
+	struct qcow2_l2_entry *l2buf =
+	    malloc(sc->sc_clustersize, M_DEVBUF, M_WAITOK | M_ZERO);
 	ensure3(l1buf, EIO, "malloc for l1 table");
 	ensure3(l2buf, EIO, "malloc for l2 table");
-	ensure(h->l1_table_offset % sc->sc_clustersize == 0, "l1 must begin at cluster offset.");
+	ensure(h->l1_table_offset % sc->sc_clustersize == 0,
+	    "l1 must begin at cluster offset.");
 
 	unsigned i = 0;
 again:
 	if (i >= numclusters) goto done;
-	;
+
 	size_t remaining = sc->sc_l1_size;
-	log("part %u: l1 offset=%llu, nentries=%u, size=%zu", 
-			i, h->l1_table_offset, h->l1_num_entries, sc->sc_l1_size);
-	error = qcow_rdwr(sc, UIO_READ, h->l1_table_offset, sc->sc_l1_size, (void *)l1buf, &remaining);
+	log("part %u: l1 offset=%llu, nentries=%u, size=%zu",
+	    i, h->l1_table_offset, h->l1_num_entries, sc->sc_l1_size);
+	error = qcow_rdwr(sc, UIO_READ,
+	    h->l1_table_offset, sc->sc_l1_size, (void *)l1buf, &remaining);
 	ensure(!error, "qcow_rdwr for l1");
 	ensure(remaining == 0, "partial read?");
 
-	uint64_t entries_per_l2_table = sc->sc_clustersize / sizeof(struct qcow2_l2_entry);
-	uint64_t vbytes_per_l2_table = entries_per_l2_table * sc->sc_clustersize;
+	uint64_t entries_per_l2_table =
+	    sc->sc_clustersize / sizeof(struct qcow2_l2_entry);
+	uint64_t vbytes_per_l2_table =
+	    entries_per_l2_table * sc->sc_clustersize;
 	uint64_t vbytes_maximum =  h->l1_num_entries * vbytes_per_l2_table;
 	// log("l1size is big enough for %llu bytes", vbytes_maximum);
 	ensure(h->size <= vbytes_maximum,
-			"l1 table is too small for virtual size! (l1 addressable=%llu, size=%llu)",
-			vbytes_maximum, h->size);
+	    "l1 table is too small for virtual size!"
+	    " (l1 addressable=%llu, size=%llu)",
+	    vbytes_maximum, h->size);
 
 	uint64_t cluster_size = 1 << h->cluster_bits;
 	uint64_t l2_entries = cluster_size / sizeof(uint64_t);
@@ -473,13 +512,13 @@ again:
 	uint64_t l1_index = (offset / cluster_size) / l2_entries;
 
 	log("... l1_index=0x%llx, l1_offset=0x%llx", l1_index,
-			h->l1_table_offset + sizeof(struct qcow2_l1_entry) * l1_index);
+	    h->l1_table_offset + sizeof(struct qcow2_l1_entry) * l1_index);
 
 	struct qcow2_l1_entry l1_entry = { betoh64(l1buf[l1_index].val) };
 	uint64_t l2_table_offset = QCOW2_L1E_OFFSET_MASK & l1_entry.val;
 	log("... l2_table_offset=0x%llx. l2_index=0x%llx, l2_offset=0x%llx",
-			l2_table_offset, l2_index,
-			l2_table_offset + sizeof(struct qcow2_l2_entry) * l1_index);
+	    l2_table_offset, l2_index,
+	    l2_table_offset + sizeof(struct qcow2_l2_entry) * l1_index);
 	remaining = sc->sc_clustersize;
 
 	if (0 == l2_table_offset) {
@@ -487,24 +526,27 @@ again:
 		goto unallocated;
 	}
 	if (rw == UIO_WRITE) {
-		ensure3(l1_entry.val & QCOW2_L1E_BIT_MASK, ENODEV, "singular bit not set. write operation would require COW");
+		ensure3(l1_entry.val & QCOW2_L1E_BIT_MASK, ENODEV,
+		    "singular bit not set. write operation would require COW");
 	}
 
 	remaining = sc->sc_clustersize;
-	error = qcow_rdwr(sc, UIO_READ, l2_table_offset, remaining, (void *)l2buf, &remaining);
+	error = qcow_rdwr(sc, UIO_READ,
+	    l2_table_offset, remaining, (void *)l2buf, &remaining);
 	ensure(!error, "l2 table read");
 	ensure(remaining == 0, "short 1");
 
 	struct qcow2_l2_entry l2_entry = { betoh64(l2buf[l2_index].val) };
 	error = ENOTSUP;
-	ensure(!(QCOW2_L2E_ISCOMPRESSED & l2_entry.val), "unsup: l2 entry is compressed");
+	ensure(!(QCOW2_L2E_ISCOMPRESSED & l2_entry.val),
+	    "unsup: l2 entry is compressed");
 
 	uint64_t cluster_offset = QCOW2_L2E_DESC_OFFSET & l2_entry.val;
 	log("... cluster_offset[%u]=0x%llx", i, cluster_offset);
 	if (0 == cluster_offset) {
-		ensure(~(QCOW2_L2E_ISSINGULAR & l2_entry.val), 
-				"singular bit may only be set with zero offset when external file"
-				" is used, which is not.");
+		ensure(~(QCOW2_L2E_ISSINGULAR & l2_entry.val),
+		    "singular bit may only be set with zero offset when"
+		    " an external file is used, which is unsupported.");
 		if (0 == cluster_offset) {
 			log("SHORT CIRCUIT: cluster is unallocated");
 			goto unallocated;
@@ -531,13 +573,15 @@ unallocated:
 		uint64_t new_l2;
 		error = qcow_append_cluster(sc, &new_l2);
 		ensure(!error, "append");
-		ensure(new_l2 % sc->sc_clustersize == 0, "INVALID: append gave us a non-aligned offset");
+		ensure(new_l2 % sc->sc_clustersize == 0,
+		    "INVALID: append gave us a non-aligned offset");
 
 		log("allocating l2 table at 0x%llx", new_l2);
-    l1buf[l1_index].val = htobe64(new_l2 | QCOW2_L1E_BIT_MASK);
+		l1buf[l1_index].val = htobe64(new_l2 | QCOW2_L1E_BIT_MASK);
 
 		remaining = sc->sc_l1_size;
-		error = qcow_rdwr(sc, UIO_WRITE, h->l1_table_offset, remaining, (void *)l1buf, &remaining);
+		error = qcow_rdwr(sc, UIO_WRITE,
+		    h->l1_table_offset, remaining, (void *)l1buf, &remaining);
 		ensure(!error, "qcow_rdwr for l1 append");
 		ensure(remaining == 0, "partial write?");
 
@@ -546,13 +590,16 @@ unallocated:
 		uint64_t new_cluster;
 		error = qcow_append_cluster(sc, &new_cluster);
 		ensure(!error, "append");
-		ensure(new_cluster % sc->sc_clustersize == 0, "INVALID: append gave us a non-aligned offset");
+		ensure(new_cluster % sc->sc_clustersize == 0,
+		    "INVALID: append gave us a non-aligned offset");
 
 		log("allocating data cluster at 0x%llx", new_cluster);
-    l2buf[l2_index].val = htobe64(new_cluster | QCOW2_L2E_ISSINGULAR);
+		l2buf[l2_index].val =
+		    htobe64(new_cluster | QCOW2_L2E_ISSINGULAR);
 
 		remaining = sc->sc_clustersize;
-		error = qcow_rdwr(sc, UIO_WRITE, l2_table_offset, remaining, (void *)l2buf, &remaining);
+		error = qcow_rdwr(sc, UIO_WRITE,
+		    l2_table_offset, remaining, (void *)l2buf, &remaining);
 		ensure(!error, "qcow_rdwr for l2 append");
 		ensure(remaining == 0, "partial write?");
 
@@ -569,7 +616,7 @@ fail:
 }
 
 void
-debug_buf(char* buf, size_t len)
+debug_buf(char *buf, size_t len)
 {
 	for (size_t i = 0; i < len; i++) {
 		printf("%02X ", buf[i]);
@@ -583,13 +630,14 @@ qcowstrategy(struct buf *bp)
 	struct qcow_softc *sc = NULL;
 	int error = EIO;
 	int s;
-	size_t shortening = 0; 
+	size_t shortening = 0;
 
+	bool locked = false;
 	uint64_t *clusteroffsets = NULL;
 	caddr_t clusterbuf = NULL;
 
 	ensure(bp->b_resid <= bp->b_bcount,
-			"INVALID: size of operation is smaller than buffer?!");
+	    "INVALID: size of operation is smaller than buffer?!");
 	bp->b_error = 0;
 	sc = qcow_enter(bp->b_dev);
 	if (sc == NULL) {
@@ -598,8 +646,7 @@ qcowstrategy(struct buf *bp)
 	}
 	qcow_leave(sc);
 
-  clusterbuf = malloc(sc->sc_clustersize, M_DEVBUF, M_WAITOK | M_ZERO);
-
+	clusterbuf = malloc(sc->sc_clustersize, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	off_t offset;
 	struct partition *p;
@@ -628,7 +675,7 @@ qcowstrategy(struct buf *bp)
 		}
 		shortening = oldresid - bp->b_resid;
 		log("... adjusted size to %zu (shortened by %zu)",
-				bp->b_resid, shortening);
+		    bp->b_resid, shortening);
 	}
 	if (bp->b_resid == 0) {
 		log("resid 0");
@@ -642,6 +689,9 @@ qcowstrategy(struct buf *bp)
 	if (rw == UIO_READ) {
 		memset(bp->b_data, 0, bp->b_bcount);
 	}
+
+	rw_enter(&sc->sc_lock, rw == UIO_READ ? RW_READ : RW_WRITE);
+	locked = true;
 
 	size_t seek = offset % sc->sc_clustersize;
 	if (seek) {
@@ -658,7 +708,8 @@ qcowstrategy(struct buf *bp)
 	bp->b_resid -= seek;
 
 	if (numclusters) {
-		clusteroffsets = malloc(sizeof(uint64_t) * numclusters, M_DEVBUF, M_WAITOK | M_ZERO);
+		clusteroffsets = malloc(sizeof(uint64_t) * numclusters,
+		    M_DEVBUF, M_WAITOK | M_ZERO);
 		ensure(clusteroffsets, "malloc");
 	}
 
@@ -673,20 +724,22 @@ again:
 		goto done;
 	}
 
-	error = qcow_prepare_clusters(sc, rw, offset, numclusters, clusteroffsets);
+	error = qcow_prepare_clusters(
+	    sc, rw, offset, numclusters, clusteroffsets);
 	ensure(!error, "prepare_clusters = %d", error);
 
 
 	if (clusteroffsets[i]) {
 		size_t remaining = sc->sc_clustersize;
-		error = qcow_rdwr(sc, UIO_READ, clusteroffsets[i], remaining, (void *)clusterbuf, &remaining);
+		error = qcow_rdwr(sc, UIO_READ, clusteroffsets[i],
+		    remaining, (void *)clusterbuf, &remaining);
 		ensure(!error, "cluster read");
 		ensure(remaining == 0, "short 2");
 	} else {
 		// zeroed
-    ensure(rw == UIO_READ,
-    		"INVALID: prepare_clusters returned a zero cluster for write");
-    memset(clusterbuf, 0, sc->sc_clustersize);
+		ensure(rw == UIO_READ,
+		    "INVALID: prepare_clusters gave a zero cluster for write");
+		memset(clusterbuf, 0, sc->sc_clustersize);
 	}
 
 	size_t copysize = sc->sc_clustersize - seek;
@@ -704,7 +757,8 @@ again:
 		// debug_buf(clusterbuf, 80);
 
 		size_t remaining = sc->sc_clustersize;
-		error = qcow_rdwr(sc, UIO_WRITE, clusteroffsets[i], remaining, (void *)clusterbuf, &remaining);
+		error = qcow_rdwr(sc, UIO_WRITE, clusteroffsets[i],
+		    remaining, (void *)clusterbuf, &remaining);
 		ensure(!error, "cluster write-bacj");
 		ensure(remaining == 0, "short 3");
 	}
@@ -719,6 +773,7 @@ fail:
 	bp->b_flags |= B_ERROR;
 	bp->b_resid = bp->b_bcount;
 done:
+	if (locked) rw_exit(&sc->sc_lock);
 	log("clusteroffsets=");
 	if (clusteroffsets) {
 		for (unsigned i = 0; i < numclusters; i++)
@@ -727,8 +782,10 @@ done:
 
 	if (!bp->b_error)
 		bp->b_resid = shortening;
-	if (clusteroffsets) free(clusteroffsets, M_DEVBUF, sizeof(uint64_t) * numclusters);
-	if (sc && clusterbuf) free(clusterbuf, M_DEVBUF, sc->sc_clustersize);
+	if (clusteroffsets)
+		free(clusteroffsets, M_DEVBUF, sizeof(uint64_t) * numclusters);
+	if (sc && clusterbuf)
+		free(clusterbuf, M_DEVBUF, sc->sc_clustersize);
 	s = splbio();
 	biodone(bp);
 	splx(s);
@@ -836,10 +893,13 @@ qcow_attach(dev_t dev, int flag, const struct qcow_attach *qc, struct proc *p)
 	}
 	sc->sc_secsize = 1 << secbits;
 	sc->sc_seccount = sc->sc_header.size / sc->sc_secsize;
-	log("... sector size = %zu, sector count = %zu", sc->sc_secsize, sc->sc_seccount);
+	log("... sector size = %zu, sector count = %zu",
+	    sc->sc_secsize, sc->sc_seccount);
 	if (!(sc->sc_seccount >= 1)) {
-		log("error: requested sector size is larger than virtual disk size?");
-		log("... sector size = %zu, virtual size = %llu", sc->sc_secsize, sc->sc_header.size);
+		log("error: requested sector size is"
+		    " larger than virtual disk size?");
+		log("... sector size = %zu, virtual size = %llu",
+		    sc->sc_secsize, sc->sc_header.size);
 		error = ENODEV;
 		goto freefname;
 	}
@@ -852,6 +912,7 @@ qcow_attach(dev_t dev, int flag, const struct qcow_attach *qc, struct proc *p)
 	if (error != 0)
 		goto rollback;
 
+	rw_init(&sc->sc_lock, "qcow rwlock");
 
 	disk_attach(&sc->sc_dev, &sc->sc_dk);
 
@@ -943,9 +1004,11 @@ qcowioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		log("ioc fname: %s (%zu)", sc->sc_fname, sc->sc_fnamelen);
 
 		error = EFBIG;
-		ensure(sc->sc_fnamelen <= sizeof(fnameargs->qc_name), "name output buffer small!");
+		ensure(sc->sc_fnamelen <= sizeof(fnameargs->qc_name),
+		    "name output buffer small!");
 
-		error = kcopy(sc->sc_fname, fnameargs->qc_name, sc->sc_fnamelen);
+		error = kcopy(
+		    sc->sc_fname, fnameargs->qc_name, sc->sc_fnamelen);
 		if (error) break;
 
 		error = 0;
